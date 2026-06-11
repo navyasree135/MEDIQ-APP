@@ -40,15 +40,7 @@
           }
         }
       ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "enableJetifier": true
-          }
-        }
-      ],
-      "./withAndroidXFix"
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true,

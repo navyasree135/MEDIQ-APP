@@ -49,8 +49,10 @@ export default function LoginScreen() {
         } catch (err) {
             if (err instanceof ApiError) {
                 setError(err.message);
+            } else if (err instanceof Error) {
+                setError(err.message || 'An unexpected error occurred.');
             } else {
-                setError('Invalid email or password.');
+                setError('An unexpected error occurred.');
             }
         }
     };
