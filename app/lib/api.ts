@@ -22,7 +22,7 @@ function defaultBaseUrl(): string {
         return 'http://localhost:8000';
     }
     // LAN IP for physical devices (Android/iOS via Expo Go)
-    return 'http://10.219.44.55:8000';
+    return 'http://10.236.176.55:8000';
 }
 
 export const API_BASE_URL = (explicitBaseUrl && explicitBaseUrl.replace(/\/$/, '')) || defaultBaseUrl();

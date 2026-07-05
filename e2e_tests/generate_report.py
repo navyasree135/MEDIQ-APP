@@ -303,6 +303,26 @@ def generate_xlsx(json_data, start_time, end_time, stdout, stderr):
     print(f"  Pass Rate: {pass_rate}%")
     print(f"  Duration: {duration_sec}s")
     print(f"{'='*60}\n")
+
+    # Write summary to GitHub Step Summary if running in CI
+    step_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if step_summary_path:
+        try:
+            with open(step_summary_path, "a", encoding="utf-8") as f:
+                f.write("### 📊 E2E Test Execution Summary (Live Tests)\n\n")
+                f.write("| Metric | Value |\n")
+                f.write("| --- | --- |\n")
+                f.write(f"| **Test Suite** | MediQ Healthcare App — Live E2E Suite |\n")
+                f.write(f"| **Total Tests** | {total} |\n")
+                f.write(f"| **Passed** | {passed} ✅ |\n")
+                f.write(f"| **Failed** | {failed} ❌ |\n")
+                f.write(f"| **Skipped** | {skipped} ⚠️ |\n")
+                f.write(f"| **Pass Rate** | {pass_rate}% |\n")
+                f.write(f"| **Duration** | {duration_sec}s ⏱️ |\n\n")
+                f.write("✨ *Live Excel report generated successfully and ready for download below!*\n")
+        except Exception as e:
+            print(f"Error writing to GITHUB_STEP_SUMMARY: {e}")
+
     return str(output_path)
 
 
