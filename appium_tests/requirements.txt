@@ -1,0 +1,5 @@
+Appium-Python-Client
+pytest
+pytest-json-report
+openpyxl
+requests

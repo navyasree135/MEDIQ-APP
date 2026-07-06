@@ -1,4 +1,4 @@
-name: MediQ E2E Selenium Testing & Reporting
+name: MediQ E2E Web & Mobile Testing & Reporting
 
 on:
   push:
@@ -23,15 +23,21 @@ jobs:
     - name: Install Python Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install openpyxl pytest pytest-json-report requests
+        pip install openpyxl pytest pytest-json-report requests Appium-Python-Client
 
-    - name: Run E2E Test Suite & Generate Report
+    - name: Run Selenium E2E Web Tests & Generate Report
       run: |
         python e2e_tests/generate_300_report.py
 
-    - name: Upload E2E Test Report (.xlsx)
+    - name: Run Appium E2E Mobile Tests & Generate Report
+      run: |
+        python appium_tests/generate_300_appium_report.py
+
+    - name: Upload Test Reports (.xlsx)
       uses: actions/upload-artifact@v4
       with:
         name: E2E_Test_Reports
-        path: E2E_Test_Report_MediQ_*.xlsx
+        path: |
+          E2E_Test_Report_MediQ_*.xlsx
+          Appium_Test_Report_MediQ_*.xlsx
         retention-days: 7
