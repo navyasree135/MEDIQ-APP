@@ -1,0 +1,56 @@
+{
+    "host": "http://localhost:8000",
+    "total_requests": 44,
+    "total_failures": 4,
+    "requests_per_sec": 0.0,
+    "avg_response_time": 812.28,
+    "min_response_time": 1.6,
+    "max_response_time": 2561.25,
+    "p95_response_time": 2500.0,
+    "endpoints": [
+        {
+            "method": "POST",
+            "endpoint": "/auth/login",
+            "requests": 15,
+            "failures": 0,
+            "avg_time": 2364.96,
+            "min_time": 2302.83,
+            "max_time": 2561.25,
+            "rps": 0.0,
+            "p95": 2600.0
+        },
+        {
+            "method": "GET",
+            "endpoint": "/doctors",
+            "requests": 10,
+            "failures": 0,
+            "avg_time": 13.53,
+            "min_time": 2.33,
+            "max_time": 64.13,
+            "rps": 0.0,
+            "p95": 64.0
+        },
+        {
+            "method": "GET",
+            "endpoint": "/health",
+            "requests": 15,
+            "failures": 0,
+            "avg_time": 5.71,
+            "min_time": 1.6,
+            "max_time": 11.99,
+            "rps": 0.0,
+            "p95": 12.0
+        },
+        {
+            "method": "POST",
+            "endpoint": "/triage/analyze",
+            "requests": 4,
+            "failures": 4,
+            "avg_time": 11.31,
+            "min_time": 4.12,
+            "max_time": 15.62,
+            "rps": 0.0,
+            "p95": 16.0
+        }
+    ]
+}
