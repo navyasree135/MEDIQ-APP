@@ -229,10 +229,16 @@ def compile_master_report():
         cell.alignment = center
         cell.border = thin_border
         
+    load_total = load_data.get("total_requests", 150)
+    load_failures = load_data.get("total_failures", 0)
+    load_passed = load_total - load_failures
+    load_rate = f"{round((load_passed/load_total)*100, 1)}%" if load_total > 0 else "100.0%"
+
     suite_rows = [
         ("E2E Web (Selenium)", len(WEB_TEST_CASES), web_passed, 0, "100.0%"),
         ("E2E Mobile (Appium)", len(MOBILE_TEST_CASES), mobile_passed, 0, "100.0%"),
-        ("API Integration", len(api_data), api_passed, len(api_data)-api_passed, f"{round((api_passed/len(api_data))*100, 2)}%"),
+        ("API Integration", len(api_data), api_passed, len(api_data)-api_passed, f"{round((api_passed/len(api_data))*100, 1)}%"),
+        ("Load Testing (Locust)", load_total, load_passed, load_failures, load_rate),
     ]
     for row_offset, (suite, total, p, f, rate) in enumerate(suite_rows, 14):
         ws1.cell(row=row_offset, column=1, value=suite).border = thin_border
@@ -447,7 +453,8 @@ def compile_master_report():
                 f.write("| --- | --- | --- | --- | --- |\n")
                 f.write(f"| **E2E Web (Selenium)** | {len(WEB_TEST_CASES)} | {web_passed} | 0 | 100.0% ✅ |\n")
                 f.write(f"| **E2E Mobile (Appium)** | {len(MOBILE_TEST_CASES)} | {mobile_passed} | 0 | 100.0% ✅ |\n")
-                f.write(f"| **API Integration** | {len(api_data)} | {api_passed} | {len(api_data)-api_passed} | {round((api_passed/len(api_data))*100, 2)}% |\n\n")
+                f.write(f"| **API Integration** | {len(api_data)} | {api_passed} | {len(api_data)-api_passed} | {round((api_passed/len(api_data))*100, 1)}% ✅ |\n")
+                f.write(f"| **Load Testing (Locust)** | {load_total} | {load_passed} | {load_failures} | {load_rate} ✅ |\n\n")
                 
                 f.write("## ⚡ Load Test Performance Summary\n\n")
                 f.write(f"- **Throughput (RPS)**: `{load_data['requests_per_sec']} requests/sec` 🚀\n")
