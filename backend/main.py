@@ -29,7 +29,25 @@ async def lifespan(app: FastAPI):
     logger.info("Starting application", extra={"env": settings.environment})
     Base.metadata.create_all(engine)
     
-    # Auto-seed doctors
+    # Auto-migrate doctors table columns if missing in SQLite database
+    from sqlalchemy import inspect, text
+    try:
+        inspector = inspect(engine)
+        if "doctors" in inspector.get_table_names():
+            existing_cols = [col["name"] for col in inspector.get_columns("doctors")]
+            with engine.begin() as conn:
+                if "clinic_address" not in existing_cols:
+                    conn.execute(text("ALTER TABLE doctors ADD COLUMN clinic_address VARCHAR(500)"))
+                if "clinic_lat" not in existing_cols:
+                    conn.execute(text("ALTER TABLE doctors ADD COLUMN clinic_lat FLOAT"))
+                if "clinic_lng" not in existing_cols:
+                    conn.execute(text("ALTER TABLE doctors ADD COLUMN clinic_lng FLOAT"))
+                if "consultation_fee" not in existing_cols:
+                    conn.execute(text("ALTER TABLE doctors ADD COLUMN consultation_fee FLOAT DEFAULT 2400.0"))
+                if "practice_timings" not in existing_cols:
+                    conn.execute(text("ALTER TABLE doctors ADD COLUMN practice_timings VARCHAR(255) DEFAULT '09:00 AM - 05:00 PM'"))
+    except Exception as e:
+        logger.warning(f"Auto-migration check skipped: {e}")
     from sqlalchemy.orm import Session
     from backend.core.security import hash_password
     from backend.models import User, UserRole, Doctor
@@ -54,8 +72,9 @@ async def lifespan(app: FastAPI):
             from sqlalchemy import text
             db.execute(text("DELETE FROM prescriptions"))
             db.execute(text("DELETE FROM lab_tests"))
+            db.execute(text("DELETE FROM appointments WHERE scheduled_at LIKE '%2026-10-12%' OR notes LIKE '%Oct 12%'"))
             db.commit()
-            logger.info("Cleared old dummy prescriptions and lab tests from database.")
+            logger.info("Cleared old dummy prescriptions, lab tests, and outdated Oct 12 appointments from database.")
         except Exception as e:
             logger.error(f"Error seeding doctors or cleaning dummy data: {e}")
             db.rollback()

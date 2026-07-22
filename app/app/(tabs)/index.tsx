@@ -153,11 +153,28 @@ export default function HomeScreen() {
                             </View>
 
                             {upcomingVisits.length > 0 ? (
-                                upcomingVisits.slice(0, 2).map((visit) => {
-                                    const dateObj = new Date(visit.scheduled_at);
-                                    const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                                    const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                                    
+                                upcomingVisits.slice(0, 5).map((visit) => {
+                                    let dateDisplay = 'Scheduled Visit';
+                                    try {
+                                        let explicitTime = '';
+                                        if (visit.notes && visit.notes.includes('Slot: ')) {
+                                            const match = visit.notes.match(/Slot:\s*([0-9]{1,2}:[0-9]{2}\s*(?:AM|PM))/i);
+                                            if (match) explicitTime = match[1];
+                                        }
+
+                                        const rawStr = String(visit.scheduled_at).replace('Z', '');
+                                        const dateObj = new Date(rawStr);
+                                        if (!isNaN(dateObj.getTime())) {
+                                            const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                                            const timeStr = explicitTime || dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                                            dateDisplay = `${dateStr} at ${timeStr}`;
+                                        } else {
+                                            dateDisplay = visit.scheduled_at;
+                                        }
+                                    } catch {
+                                        dateDisplay = visit.scheduled_at || 'Scheduled Visit';
+                                    }
+
                                     return (
                                         <Pressable 
                                             key={visit.id} 
@@ -170,7 +187,7 @@ export default function HomeScreen() {
                                             <View style={styles.reportInfo}>
                                                 <Text style={styles.reportTitle}>{visit.patient_name || 'Patient File'}</Text>
                                                 <Text style={styles.reportDate}>
-                                                    {dateStr} at {timeStr} • Status: {visit.status.toUpperCase()}
+                                                    {dateDisplay} • Status: {visit.status.toUpperCase()}
                                                 </Text>
                                             </View>
                                             <Ionicons name="chevron-forward" size={20} color="#6f7f79" />

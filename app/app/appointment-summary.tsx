@@ -31,11 +31,19 @@ export default function AppointmentSummaryScreen() {
 
             let scheduledAt: string;
             try {
-                const parsedDate = new Date(`${dateStr || ''} ${timeStr || ''}`.trim());
-                if (isNaN(parsedDate.getTime())) {
+                const combined = `${dateStr || ''} ${timeStr || ''}`.trim();
+                const parsed = new Date(combined);
+                if (isNaN(parsed.getTime())) {
                     scheduledAt = new Date().toISOString();
                 } else {
-                    scheduledAt = parsedDate.toISOString();
+                    const pad = (n: number) => String(n).padStart(2, '0');
+                    const yyyy = parsed.getFullYear();
+                    const mm = pad(parsed.getMonth() + 1);
+                    const dd = pad(parsed.getDate());
+                    const hh = pad(parsed.getHours());
+                    const min = pad(parsed.getMinutes());
+                    const ss = pad(parsed.getSeconds());
+                    scheduledAt = `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`;
                 }
             } catch {
                 scheduledAt = new Date().toISOString();
@@ -47,7 +55,7 @@ export default function AppointmentSummaryScreen() {
                 patient_id: patient.id,
                 doctor_id: docIdNum,
                 scheduled_at: scheduledAt,
-                notes: 'Pay at hospital consultation',
+                notes: `Pay at hospital consultation | Slot: ${timeStr}`,
             });
 
             router.push({

@@ -55,11 +55,19 @@ export default function PaymentScreen() {
             // Build a proper datetime from the date and time strings
             let scheduledAt: string;
             try {
-                const parsedDate = new Date(`${dateStr || ''} ${timeStr || ''}`.trim());
-                if (isNaN(parsedDate.getTime())) {
+                const combined = `${dateStr || ''} ${timeStr || ''}`.trim();
+                const parsed = new Date(combined);
+                if (isNaN(parsed.getTime())) {
                     scheduledAt = new Date().toISOString();
                 } else {
-                    scheduledAt = parsedDate.toISOString();
+                    const pad = (n: number) => String(n).padStart(2, '0');
+                    const yyyy = parsed.getFullYear();
+                    const mm = pad(parsed.getMonth() + 1);
+                    const dd = pad(parsed.getDate());
+                    const hh = pad(parsed.getHours());
+                    const min = pad(parsed.getMinutes());
+                    const ss = pad(parsed.getSeconds());
+                    scheduledAt = `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`;
                 }
             } catch {
                 scheduledAt = new Date().toISOString();
@@ -70,7 +78,7 @@ export default function PaymentScreen() {
                 patient_id: patient.id,
                 doctor_id: Number(doctorId),
                 scheduled_at: scheduledAt,
-                notes: `Payment via ${selectedQuickPay || 'UPI'}: ${upiId}`,
+                notes: `Payment via ${selectedQuickPay || 'UPI'}: ${upiId} | Slot: ${timeStr}`,
             });
 
             router.push({

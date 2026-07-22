@@ -25,6 +25,8 @@ class Doctor(Base):
     clinic_address: Mapped[str | None] = mapped_column(String(500))
     clinic_lat: Mapped[float | None] = mapped_column(Float)
     clinic_lng: Mapped[float | None] = mapped_column(Float)
+    consultation_fee: Mapped[float | None] = mapped_column(Float, default=2400.0)
+    practice_timings: Mapped[str | None] = mapped_column(String(255), default="09:00 AM - 05:00 PM")
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
