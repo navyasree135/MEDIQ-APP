@@ -1,6 +1,8 @@
 """
 Pytest configuration and client fixtures for MediQ API Testing.
 """
+
+# pyrefly: ignore [missing-import]
 import pytest
 import os
 from sqlalchemy import create_engine

@@ -210,18 +210,6 @@ export default function AppointmentDetailsScreen() {
                         <Ionicons name="stats-chart" size={18} color="#ffffff" />
                         <Text style={styles.trackerText}>Open Queue Tracker</Text>
                     </Pressable>
-
-                    <Pressable 
-                        style={styles.cancelBtn} 
-                        onPress={() => {
-                            Alert.alert('Cancel Appointment', 'Do you wish to cancel this appointment?', [
-                                { text: 'No' },
-                                { text: 'Yes, Cancel', onPress: () => router.replace('/my-appointments') }
-                            ]);
-                        }}
-                    >
-                        <Text style={styles.cancelText}>Cancel Appointment</Text>
-                    </Pressable>
                 </View>
 
             </ScrollView>

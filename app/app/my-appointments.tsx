@@ -192,19 +192,18 @@ export default function MyAppointmentsScreen() {
                                     </View>
                                 </View>
 
-                                <View style={styles.divider} />
+                                {item.status !== 'completed' && item.status !== 'cancelled' && (
+                                    <>
+                                        <View style={styles.divider} />
 
-                                {/* Action Buttons */}
-                                <View style={styles.cardFooter}>
-                                    {item.status !== 'cancelled' && item.status !== 'completed' && (
-                                        <Pressable style={styles.cancelBtn} onPress={() => handleCancelAppointment(item.id)}>
-                                            <Text style={styles.cancelBtnText}>Cancel</Text>
-                                        </Pressable>
-                                    )}
-                                    <Pressable style={styles.detailsBtn} onPress={() => handleViewDetails(item)}>
-                                        <Text style={styles.detailsBtnText}>View Details</Text>
-                                    </Pressable>
-                                </View>
+                                        {/* Action Buttons */}
+                                        <View style={styles.cardFooter}>
+                                            <Pressable style={[styles.detailsBtn, { flex: 1 }]} onPress={() => handleViewDetails(item)}>
+                                                <Text style={styles.detailsBtnText}>View Details</Text>
+                                            </Pressable>
+                                        </View>
+                                    </>
+                                )}
                             </View>
                         );
                     })

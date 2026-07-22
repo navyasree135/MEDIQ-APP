@@ -3,6 +3,29 @@ import { StyleSheet, View, Text, Pressable, SafeAreaView, ScrollView, Platform, 
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
+// Formats a JS Date to ICS datetime string (UTC): 20231024T103000Z
+function toICSDate(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return (
+        date.getUTCFullYear() +
+        pad(date.getUTCMonth() + 1) +
+        pad(date.getUTCDate()) +
+        'T' +
+        pad(date.getUTCHours()) +
+        pad(date.getUTCMinutes()) +
+        '00Z'
+    );
+}
+
+// Tries to parse dateStr (e.g. "Oct 12, 2026") + timeStr (e.g. "09:30 AM") into a Date
+function parseAppointmentDate(dateStr: string, timeStr: string): Date | null {
+    try {
+        return new Date(`${dateStr} ${timeStr}`);
+    } catch {
+        return null;
+    }
+}
+
 export default function BookingConfirmedScreen() {
     const params = useLocalSearchParams();
     const doctorName = (params.doctorName as string) || 'Dr. Sarah Al-Farsi';
@@ -43,8 +66,89 @@ export default function BookingConfirmedScreen() {
         }
     };
 
-    const handleAddToCalendar = () => {
-        Alert.alert('Success', 'Appointment successfully added to your system calendar.');
+    const handleAddToCalendar = async () => {
+        const startDate = parseAppointmentDate(dateStr, timeStr);
+        if (!startDate || isNaN(startDate.getTime())) {
+            Alert.alert('Error', 'Could not parse appointment date/time.');
+            return;
+        }
+        const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // +1 hour
+        const location = clinicAddress || hospital || '';
+        const title = `Medical Appointment with ${doctorName}`;
+        const description = `Token: #A-42 | ${title} at ${location}`;
+
+        if (Platform.OS === 'web') {
+            // Generate and download an .ics file
+            const icsContent = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//MediQ//Medical Appointment//EN',
+                'BEGIN:VEVENT',
+                `UID:mediq-${Date.now()}@mediq.app`,
+                `DTSTART:${toICSDate(startDate)}`,
+                `DTEND:${toICSDate(endDate)}`,
+                `SUMMARY:${title}`,
+                `DESCRIPTION:${description}`,
+                `LOCATION:${location}`,
+                'END:VEVENT',
+                'END:VCALENDAR',
+            ].join('\r\n');
+
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'appointment.ics';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            Alert.alert('Calendar File Downloaded', 'Open the downloaded "appointment.ics" file to add the event to your calendar.');
+        } else if (Platform.OS === 'android') {
+            // Android calendar intent via content URI
+            const startMs = startDate.getTime();
+            const endMs = endDate.getTime();
+            const calendarUrl = `content://com.android.calendar/time/${startMs}`;
+            const intentUrl =
+                `intent:#Intent;` +
+                `action=android.intent.action.INSERT;` +
+                `data=content%3A%2F%2Fcom.android.calendar%2Fevents;` +
+                `S.title=${encodeURIComponent(title)};` +
+                `S.description=${encodeURIComponent(description)};` +
+                `S.eventLocation=${encodeURIComponent(location)};` +
+                `l.beginTime=${startMs};` +
+                `l.endTime=${endMs};` +
+                `end`;
+            const canOpen = await Linking.canOpenURL(intentUrl);
+            if (canOpen) {
+                await Linking.openURL(intentUrl);
+            } else {
+                // Fallback: open Google Calendar web
+                const gcUrl =
+                    `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+                    `&text=${encodeURIComponent(title)}` +
+                    `&dates=${toICSDate(startDate)}/${toICSDate(endDate)}` +
+                    `&details=${encodeURIComponent(description)}` +
+                    `&location=${encodeURIComponent(location)}`;
+                await Linking.openURL(gcUrl);
+            }
+        } else {
+            // iOS: open Apple Calendar via calshow:// or Google Calendar fallback
+            const startSecs = Math.floor(startDate.getTime() / 1000);
+            const iosUrl = `calshow:${startSecs}`;
+            const canApple = await Linking.canOpenURL(iosUrl);
+            if (canApple) {
+                await Linking.openURL(iosUrl);
+            } else {
+                const gcUrl =
+                    `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+                    `&text=${encodeURIComponent(title)}` +
+                    `&dates=${toICSDate(startDate)}/${toICSDate(endDate)}` +
+                    `&details=${encodeURIComponent(description)}` +
+                    `&location=${encodeURIComponent(location)}`;
+                await Linking.openURL(gcUrl);
+            }
+        }
     };
 
     return (
@@ -110,7 +214,7 @@ export default function BookingConfirmedScreen() {
 
                 {/* Action Buttons (Calendar / Share) */}
                 <View style={styles.actionsContainer}>
-                    <Pressable style={styles.outlineBtn} onPress={handleAddToCalendar}>
+                    <Pressable style={styles.outlineBtn} onPress={() => void handleAddToCalendar()}>
                         <Ionicons name="calendar-outline" size={20} color="#008080" />
                         <Text style={styles.outlineBtnText}>Add to Calendar</Text>
                     </Pressable>
@@ -145,9 +249,12 @@ export default function BookingConfirmedScreen() {
             </ScrollView>
 
             {/* Bottom sticky action button */}
-            <View style={styles.bottomBar}>
-                <Pressable style={styles.homeBtn} onPress={handleGoHome}>
-                    <Text style={styles.homeBtnText}>Go to Home</Text>
+            <View style={[styles.bottomBar, { flexDirection: 'row', gap: 10 }]}>
+                <Pressable style={[styles.homeBtn, { flex: 1, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#cbd5e1' }]} onPress={handleGoHome}>
+                    <Text style={[styles.homeBtnText, { color: '#334155' }]}>Home</Text>
+                </Pressable>
+                <Pressable style={[styles.homeBtn, { flex: 2 }]} onPress={() => router.replace('/my-appointments')}>
+                    <Text style={styles.homeBtnText}>View My Appointments</Text>
                 </Pressable>
             </View>
         </SafeAreaView>

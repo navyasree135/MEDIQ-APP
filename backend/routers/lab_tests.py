@@ -51,6 +51,38 @@ def create_lab_test(
     return lab_test
 
 
+@router.post("/for-patient/{patient_id}", response_model=LabTestResponse)
+def doctor_create_lab_test(
+    patient_id: int,
+    payload: LabTestCreate,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """Doctor records a lab test report for a specific patient."""
+    if user.role != UserRole.DOCTOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only doctors can create lab test records for patients",
+        )
+
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+
+    lab_test = LabTest(
+        patient_id=patient_id,
+        test_name=payload.test_name,
+        lab_name=payload.lab_name,
+        order_date=payload.order_date,
+        status=payload.status,
+        file_name=payload.file_name,
+    )
+    db.add(lab_test)
+    db.commit()
+    db.refresh(lab_test)
+    return lab_test
+
+
 @router.get("/patient/{patient_id}", response_model=list[LabTestResponse])
 def get_patient_lab_tests(
     patient_id: int,

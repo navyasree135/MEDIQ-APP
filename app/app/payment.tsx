@@ -53,8 +53,17 @@ export default function PaymentScreen() {
             const patient = await fetchPatientMe(token);
 
             // Build a proper datetime from the date and time strings
-            // dateStr looks like "OCT 15, 2026", timeStr looks like "09:30 AM"
-            const scheduledAt = new Date(`${dateStr} ${timeStr}`).toISOString();
+            let scheduledAt: string;
+            try {
+                const parsedDate = new Date(`${dateStr || ''} ${timeStr || ''}`.trim());
+                if (isNaN(parsedDate.getTime())) {
+                    scheduledAt = new Date().toISOString();
+                } else {
+                    scheduledAt = parsedDate.toISOString();
+                }
+            } catch {
+                scheduledAt = new Date().toISOString();
+            }
 
             // Actually book the appointment via API
             await bookAppointment(token, {

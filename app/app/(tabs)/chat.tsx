@@ -269,25 +269,7 @@ export default function ChatScreen() {
                 {/* Header removed */}
                 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    {/* Toggle Switch */}
-                    <View style={styles.toggleOuter}>
-                        <Pressable 
-                            style={[styles.toggleBtn, inputType === 'type' ? styles.toggleBtnActive : styles.toggleBtnInactive]}
-                            onPress={() => setInputType('type')}
-                        >
-                            <Text style={inputType === 'type' ? styles.toggleTextActive : styles.toggleTextInactive}>Type Symptoms</Text>
-                        </Pressable>
-                        <Pressable 
-                            style={[styles.toggleBtn, inputType === 'voice' ? styles.toggleBtnActive : styles.toggleBtnInactive]}
-                            onPress={() => {
-                                setTranscript('');
-                                setState('listening');
-                            }}
-                        >
-                            <Ionicons name="mic-outline" size={16} color={inputType === 'voice' ? "#fff" : "#008080"} style={{ marginRight: 6 }} />
-                            <Text style={inputType === 'voice' ? styles.toggleTextActive : styles.toggleTextInactive}>Voice Input</Text>
-                        </Pressable>
-                    </View>
+
 
                     {/* Description Block */}
                     <View style={styles.sectionWrap}>

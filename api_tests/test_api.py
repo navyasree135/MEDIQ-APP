@@ -3,6 +3,7 @@ MediQ Backend API Router Tests
 ==============================
 Contains integration tests for the FastAPI backend endpoints using FastAPI TestClient.
 """
+# pyrefly: ignore [missing-import]
 import pytest
 
 class TestMediQBackendAPI:

@@ -158,7 +158,6 @@ export default function LabTestsScreen() {
                                     <View style={styles.cardInfo}>
                                         <Text style={styles.testName}>{test.test_name}</Text>
                                         <Text style={styles.labName}>{test.lab_name}</Text>
-                                        <Text style={styles.orderDate}>Ordered: {test.order_date}</Text>
                                         {test.file_name && (
                                             <View style={styles.fileBadge}>
                                                 <Ionicons 
@@ -176,7 +175,7 @@ export default function LabTestsScreen() {
                                         </Text>
                                     </View>
                                 </View>
-                                {isPending ? (
+                                {isPending && (
                                     <Pressable 
                                         style={({ pressed }) => [
                                             styles.primaryBtn,
@@ -186,17 +185,6 @@ export default function LabTestsScreen() {
                                     >
                                         <Ionicons name="calendar-outline" size={18} color="#ffffff" style={styles.btnIcon} />
                                         <Text style={styles.primaryBtnText}>Book Lab Appointment</Text>
-                                    </Pressable>
-                                ) : (
-                                    <Pressable 
-                                        style={({ pressed }) => [
-                                            styles.secondaryBtn,
-                                            pressed && styles.btnPressed
-                                        ]}
-                                        onPress={() => Alert.alert('Lab Results', `Results for ${test.test_name} (${test.file_name || 'No attachment'}) are saved and within normal ranges.`)}
-                                    >
-                                        <Ionicons name="eye-outline" size={18} color="#008080" style={styles.btnIcon} />
-                                        <Text style={styles.secondaryBtnText}>View Results</Text>
                                     </Pressable>
                                 )}
                             </View>

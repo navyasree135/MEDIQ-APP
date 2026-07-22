@@ -43,6 +43,22 @@ export default function SignupScreen() {
         return <Redirect href="/(tabs)" />;
     }
 
+    const validatePassword = (pass: string): string | null => {
+        if (pass.length < 8) {
+            return 'Password must be at least 8 characters long.';
+        }
+        if (!/[A-Z]/.test(pass)) {
+            return 'Password must contain at least 1 uppercase letter (e.g. A-Z).';
+        }
+        if (!/[0-9]/.test(pass)) {
+            return 'Password must contain at least 1 number (e.g. 0-9).';
+        }
+        if (!/[!@#$%^&*(),.?":{}|<>\-_\\\/+=;']/.test(pass)) {
+            return 'Password must contain at least 1 special character (e.g. @, #, $, !).';
+        }
+        return null;
+    };
+
     const onSubmit = async () => {
         if (!fullName.trim() || !email.trim() || !phone.trim() || !password.trim()) {
             setError('Please fill in all fields.');
@@ -51,6 +67,12 @@ export default function SignupScreen() {
 
         if (role === 'doctor' && !specialty.trim()) {
             setError('Please enter your medical specialty.');
+            return;
+        }
+
+        const passErr = validatePassword(password);
+        if (passErr) {
+            setError(passErr);
             return;
         }
 
@@ -190,6 +212,28 @@ export default function SignupScreen() {
                                 onChangeText={setPassword}
                             />
                         </View>
+
+                        {password.length > 0 && (() => {
+                            const hasMinLen = password.length >= 8;
+                            const hasUpper = /[A-Z]/.test(password);
+                            const hasNumber = /[0-9]/.test(password);
+                            const hasSpecial = /[!@#$%^&*(),.?":{}|<>\-_\\\/+=;']/.test(password);
+                            const score = [hasMinLen, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
+                            const label = score === 4 ? 'Strong' : score >= 2 ? 'Medium' : 'Weak';
+                            const color = score === 4 ? '#059669' : score >= 2 ? '#d97706' : '#dc2626';
+
+                            return (
+                                <View style={styles.strengthBox}>
+                                    <Text style={styles.strengthTitleText}>
+                                        Password strength:{' '}
+                                        <Text style={{ color, fontWeight: '800' }}>{label}</Text>
+                                    </Text>
+                                    <Text style={styles.strengthSubText}>
+                                        Use at least 8 characters, one uppercase letter, one special character, and one number in your password.
+                                    </Text>
+                                </View>
+                            );
+                        })()}
 
                         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -369,6 +413,27 @@ const styles = StyleSheet.create({
     roleTabTextActive: {
         color: '#fff',
         fontWeight: '700',
+    },
+    strengthBox: {
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        marginBottom: 12,
+        marginTop: 4,
+    },
+    strengthTitleText: {
+        fontSize: 13,
+        color: '#334155',
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    strengthSubText: {
+        fontSize: 12,
+        color: '#64748b',
+        lineHeight: 18,
     },
 });
 

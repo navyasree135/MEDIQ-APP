@@ -5,9 +5,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
-from backend.core.security import create_access_token, get_current_user
+from backend.core.security import create_access_token, get_current_user, hash_password
 from backend.models import User, UserRole
-from backend.schemas.auth import SignUpRequest, Token, UserResponse
+from backend.schemas.auth import SignUpRequest, Token, UserResponse, ResetPasswordRequest
 from backend.services.auth import authenticate_user, create_doctor_user, create_patient_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -50,6 +50,23 @@ def login(
     user = authenticate_user(db, form_data.username, form_data.password)
     token = create_access_token({"sub": str(user.id), "role": user.role.value})
     return Token(access_token=token)
+
+
+@router.post("/reset-password")
+def reset_password(
+    payload: ResetPasswordRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address."
+        )
+
+    user.hashed_password = hash_password(payload.new_password)
+    db.commit()
+    return {"message": "Password reset successfully"}
 
 
 @router.get("/verify", response_model=UserResponse)

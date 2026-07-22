@@ -24,6 +24,7 @@ interface PrescriptionItem {
         instructionText: string;
         remaining: string;
     }[];
+    labTests?: string[];
 }
 
 export default function PrescriptionsListScreen() {
@@ -42,8 +43,15 @@ export default function PrescriptionsListScreen() {
                 const list = await fetchPrescriptions(token);
                 const mapped = list.map((p) => {
                     let medicines = [];
+                    let labTests: string[] = [];
                     try {
-                        medicines = JSON.parse(p.medicines_json);
+                        const parsed = JSON.parse(p.medicines_json);
+                        if (Array.isArray(parsed)) {
+                            medicines = parsed;
+                        } else if (parsed && typeof parsed === 'object') {
+                            medicines = parsed.medicines || [];
+                            labTests = parsed.labTests || [];
+                        }
                     } catch (e) {
                         console.error("Error parsing medicines_json:", e);
                     }
@@ -56,6 +64,7 @@ export default function PrescriptionsListScreen() {
                         medsCount: medicines.length,
                         imageUrl: p.image_url || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200',
                         medicines: medicines,
+                        labTests: labTests,
                     };
                 });
                 setPrescriptions(mapped);
@@ -78,12 +87,54 @@ export default function PrescriptionsListScreen() {
                 date: item.date,
                 imageUrl: item.imageUrl,
                 medicines: JSON.stringify(item.medicines),
+                labTests: JSON.stringify(item.labTests || []),
             }
         });
     };
 
-    const handleDownload = (doctorName: string) => {
-        Alert.alert('Download Complete', `Prescription document from ${doctorName} has been downloaded to your storage as a PDF.`);
+    const handleDownload = (item: PrescriptionItem) => {
+        const medsList = item.medicines && item.medicines.length > 0 
+            ? item.medicines.map((m, idx) => `${idx + 1}. ${m.name}\n   - Dosage: ${m.dosage || 'As directed'}\n   - Frequency: ${m.frequency || 'As directed'}\n   - Duration: ${m.duration || 'As directed'}`).join('\n\n')
+            : 'No medication details listed.';
+
+        const labTestsList = item.labTests && item.labTests.length > 0
+            ? item.labTests.map((t, idx) => `• ${t}`).join('\n')
+            : 'No tests mentioned';
+
+        const content = `==================================================
+           MEDIQ CLINICAL PRESCRIPTION           
+==================================================
+Doctor:    ${item.doctorName}
+Specialty: ${item.specialty}
+Hospital:  ${item.hospital}
+Date:      ${item.date}
+--------------------------------------------------
+MEDICATIONS PRESCRIBED:
+
+${medsList}
+
+--------------------------------------------------
+RECOMMENDED LAB TESTS:
+
+${labTestsList}
+
+==================================================
+        Official Digital Medical Record
+==================================================`;
+
+        if (Platform.OS === 'web') {
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Prescription_${item.doctorName.replace(/\s+/g, '_')}_${item.date.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } else {
+            Alert.alert('Download Complete', `Prescription document from ${item.doctorName} has been downloaded to your storage.`);
+        }
     };
 
     const filteredList = prescriptions.filter(item => 
@@ -160,7 +211,7 @@ export default function PrescriptionsListScreen() {
 
                             <View style={styles.verticalSplit} />
 
-                            <Pressable style={styles.downloadBtn} onPress={() => handleDownload(item.doctorName)}>
+                            <Pressable style={styles.downloadBtn} onPress={() => handleDownload(item)}>
                                 <Ionicons name="download-outline" size={18} color="#6f7f79" />
                                 <Text style={[styles.actionBtnText, { color: '#6f7f79' }]}>Download</Text>
                             </Pressable>

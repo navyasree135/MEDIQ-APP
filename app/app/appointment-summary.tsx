@@ -1,32 +1,74 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, Pressable, SafeAreaView, ScrollView, Image, Platform } from 'react-native';
+import { StyleSheet, View, Text, Pressable, SafeAreaView, ScrollView, Image, Platform, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { useAuth } from '@/hooks/use-auth';
+import { bookAppointment, fetchPatientMe } from '@/lib/api';
+
 export default function AppointmentSummaryScreen() {
+    const { token } = useAuth();
     const params = useLocalSearchParams();
-    const doctorName = (params.doctorName as string) || 'Dr. Marcus Thorne';
+    const doctorName = (params.doctorName as string) || 'Dr. Julian Thorne';
     const doctorId = (params.doctorId as string) || '';
     const dateStr = (params.date as string) || 'Oct 24, 2023';
     const timeStr = (params.time as string) || '10:30 AM';
-
-    const [paymentMethod, setPaymentMethod] = useState<'card' | 'upi'>('card');
+    const hospital = (params.hospital as string) || '';
+    const clinicAddress = (params.clinicAddress as string) || '';
+    const [submitting, setSubmitting] = useState(false);
 
     const consultationFee = 2400;
-    const serviceFee = 50;
-    const totalPayable = consultationFee + serviceFee;
 
-    const handleConfirmAndPay = () => {
-        router.push({
-            pathname: '/payment',
-            params: {
-                doctorName,
-                doctorId,
-                date: dateStr,
-                time: timeStr,
-                amount: totalPayable.toString(),
+    const handleConfirmAppointment = async () => {
+        if (!token) {
+            Alert.alert('Error', 'You must be logged in to book an appointment.');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const patient = await fetchPatientMe(token);
+
+            let scheduledAt: string;
+            try {
+                const parsedDate = new Date(`${dateStr || ''} ${timeStr || ''}`.trim());
+                if (isNaN(parsedDate.getTime())) {
+                    scheduledAt = new Date().toISOString();
+                } else {
+                    scheduledAt = parsedDate.toISOString();
+                }
+            } catch {
+                scheduledAt = new Date().toISOString();
             }
-        });
+
+            const docIdNum = Number(doctorId) || 1;
+
+            await bookAppointment(token, {
+                patient_id: patient.id,
+                doctor_id: docIdNum,
+                scheduled_at: scheduledAt,
+                notes: 'Pay at hospital consultation',
+            });
+
+            router.push({
+                pathname: '/booking-confirmed',
+                params: {
+                    doctorName,
+                    doctorId: String(docIdNum),
+                    hospital: hospital || clinicAddress,
+                    clinicAddress,
+                    date: dateStr,
+                    time: timeStr,
+                    amount: consultationFee.toString(),
+                }
+            });
+        } catch (err: unknown) {
+            console.error('Booking error:', err);
+            const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+            Alert.alert('Booking Failed', message);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -69,22 +111,10 @@ export default function AppointmentSummaryScreen() {
                             <Ionicons name="business" size={20} color="#008080" />
                         </View>
                         <View style={styles.infoTextContainer}>
-                            <Text style={styles.infoTitle}>Metropol Medical Center</Text>
-                            <Text style={styles.infoSubtitle}>4522 Innovation Parkway, Floor 4, Suite 200, North District</Text>
+                            <Text style={styles.infoTitle}>{hospital || clinicAddress || 'Hospital'}</Text>
                         </View>
                     </View>
 
-                    {/* Date/Time Row */}
-                    <View style={styles.dateTimeContainer}>
-                        <View style={styles.dateTimeItem}>
-                            <Ionicons name="calendar-outline" size={18} color="#008080" />
-                            <Text style={styles.dateTimeText}>{dateStr}</Text>
-                        </View>
-                        <View style={styles.dateTimeItem}>
-                            <Ionicons name="time-outline" size={18} color="#008080" />
-                            <Text style={styles.dateTimeText}>{timeStr}</Text>
-                        </View>
-                    </View>
 
                     {/* Token Container */}
                     <View style={styles.tokenCard}>
@@ -99,68 +129,58 @@ export default function AppointmentSummaryScreen() {
                     </View>
                 </View>
 
-                {/* Payment Method Section */}
+                {/* Payment Details Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>Payment Method</Text>
-                    <View style={styles.methodGrid}>
-                        {/* Credit Card Card */}
-                        <Pressable
-                            style={[
-                                styles.methodCard,
-                                paymentMethod === 'card' && styles.methodCardSelected,
-                            ]}
-                            onPress={() => setPaymentMethod('card')}
-                        >
-                            <View style={styles.methodIconCircle}>
-                                <Ionicons name="card" size={24} color="#008080" />
+                    <Text style={styles.sectionHeader}>Payment Details</Text>
+                    <View style={styles.paymentInfoCard}>
+                        <View style={styles.paymentIconRow}>
+                            <View style={styles.paymentIconCircle}>
+                                <Ionicons name="cash-outline" size={26} color="#008080" />
                             </View>
-                            <Text style={styles.methodName}>Credit Card</Text>
-                            <View style={[styles.radioOuter, paymentMethod === 'card' && styles.radioOuterSelected]}>
-                                {paymentMethod === 'card' && <Ionicons name="checkmark-circle" size={18} color="#008080" />}
+                            <View style={styles.paymentTextBlock}>
+                                <Text style={styles.paymentInfoTitle}>Pay at Hospital</Text>
+                                <Text style={styles.paymentInfoDesc}>
+                                    No advance payment required. Please complete your payment directly at the hospital reception after your consultation.
+                                </Text>
                             </View>
-                        </Pressable>
-
-                        {/* UPI Card */}
-                        <Pressable
-                            style={[
-                                styles.methodCard,
-                                paymentMethod === 'upi' && styles.methodCardSelected,
-                            ]}
-                            onPress={() => setPaymentMethod('upi')}
-                        >
-                            <View style={styles.methodIconCircle}>
-                                <Ionicons name="wallet" size={24} color="#008080" />
-                            </View>
-                            <Text style={styles.methodName}>UPI / Wallet</Text>
-                            <View style={[styles.radioOuter, paymentMethod === 'upi' && styles.radioOuterSelected]}>
-                                {paymentMethod === 'upi' && <Ionicons name="checkmark-circle" size={18} color="#008080" />}
-                            </View>
-                        </Pressable>
+                        </View>
+                        <View style={styles.paymentNotice}>
+                            <Ionicons name="information-circle-outline" size={16} color="#008080" style={{ marginRight: 6, marginTop: 1 }} />
+                            <Text style={styles.paymentNoticeText}>
+                                Accepted: Cash, Card, UPI — at the hospital counter.
+                            </Text>
+                        </View>
                     </View>
                 </View>
 
-                {/* Subtotal details card */}
+                {/* Consultation Fee Summary */}
                 <View style={styles.billCard}>
                     <View style={styles.billRow}>
-                        <Text style={styles.billLabel}>Subtotal</Text>
+                        <Text style={styles.billLabel}>Consultation Fee</Text>
                         <Text style={styles.billValue}>₹{consultationFee.toLocaleString('en-IN')}.00</Text>
                     </View>
-                    <View style={styles.billRow}>
-                        <Text style={styles.billLabel}>Service Fee</Text>
-                        <Text style={styles.billValue}>₹{serviceFee.toLocaleString('en-IN')}.00</Text>
-                    </View>
                     <View style={[styles.billRow, { marginTop: 10, borderTopWidth: 1, borderTopColor: '#e8f2f4', paddingTop: 10 }]}>
-                        <Text style={styles.totalLabel}>Total Payable</Text>
-                        <Text style={styles.totalValue}>₹{totalPayable.toLocaleString('en-IN')}.00</Text>
+                        <Text style={styles.totalLabel}>Amount to Pay at Hospital</Text>
+                        <Text style={styles.totalValue}>₹{consultationFee.toLocaleString('en-IN')}.00</Text>
                     </View>
                 </View>
             </ScrollView>
 
             {/* Bottom Confirm Bar */}
             <View style={styles.bottomBar}>
-                <Pressable style={styles.confirmBtn} onPress={handleConfirmAndPay}>
-                    <Text style={styles.confirmText}>Confirm & Pay</Text>
-                    <Ionicons name="chevron-forward" size={20} color="#ffffff" style={{ marginLeft: 8 }} />
+                <Pressable
+                    style={[styles.confirmBtn, submitting && { opacity: 0.7 }]}
+                    onPress={() => void handleConfirmAppointment()}
+                    disabled={submitting}
+                >
+                    {submitting ? (
+                        <ActivityIndicator color="#ffffff" />
+                    ) : (
+                        <>
+                            <Text style={styles.confirmText}>Confirm Appointment</Text>
+                            <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" style={{ marginLeft: 8 }} />
+                        </>
+                    )}
                 </Pressable>
             </View>
         </SafeAreaView>
@@ -343,56 +363,54 @@ const styles = StyleSheet.create({
         color: '#002b40',
         marginBottom: 15,
     },
-    methodGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 15,
-    },
-    methodCard: {
-        flex: 1,
-        backgroundColor: '#f6fafb',
+    paymentInfoCard: {
+        backgroundColor: '#f0fafa',
         borderWidth: 1.5,
-        borderColor: '#e8f2f4',
+        borderColor: '#b2dede',
         borderRadius: 16,
-        padding: 15,
-        alignItems: 'center',
-        justifyContent: 'center',
+        padding: 18,
+        gap: 14,
     },
-    methodCardSelected: {
-        borderColor: '#008080',
+    paymentIconRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 14,
+    },
+    paymentIconCircle: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         backgroundColor: '#e3f3f5',
-    },
-    methodIconCircle: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#ffffff',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
     },
-    methodName: {
-        fontSize: 14,
+    paymentTextBlock: {
+        flex: 1,
+    },
+    paymentInfoTitle: {
+        fontSize: 15,
         fontWeight: '700',
         color: '#002b40',
-        marginTop: 10,
+        marginBottom: 4,
     },
-    radioOuter: {
-        marginTop: 10,
-        width: 20,
-        height: 20,
+    paymentInfoDesc: {
+        fontSize: 13,
+        color: '#4a6670',
+        lineHeight: 19,
+    },
+    paymentNotice: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: '#e3f3f5',
         borderRadius: 10,
-        borderWidth: 1.5,
-        borderColor: '#a3b5bc',
-        alignItems: 'center',
-        justifyContent: 'center',
+        padding: 10,
     },
-    radioOuterSelected: {
-        borderColor: '#008080',
-        borderWidth: 0,
+    paymentNoticeText: {
+        flex: 1,
+        fontSize: 12,
+        color: '#006060',
+        fontWeight: '600',
+        lineHeight: 17,
     },
     billCard: {
         backgroundColor: '#f6fafb',
@@ -419,14 +437,14 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     totalLabel: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '700',
         color: '#002b40',
     },
     totalValue: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '800',
-        color: '#002b40',
+        color: '#008080',
     },
     bottomBar: {
         position: 'absolute',

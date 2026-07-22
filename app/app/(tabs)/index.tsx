@@ -30,18 +30,7 @@ export default function HomeScreen() {
 
     const localParams = useLocalSearchParams();
 
-    useEffect(() => {
-        if (localParams.triggerPillAlert === 'true') {
-            const medName = localParams.medName as string;
-            const timer = setTimeout(() => {
-                router.push({
-                    pathname: '/medicine-reminder',
-                    params: { medName }
-                });
-            }, 2500);
-            return () => clearTimeout(timer);
-        }
-    }, [localParams.triggerPillAlert, localParams.medName]);
+
 
     const loadSummary = useCallback(async () => {
         if (!token) {
@@ -206,11 +195,7 @@ export default function HomeScreen() {
                             <View style={styles.summaryContent}>
                                 <View>
                                     <Text style={styles.summaryLabel}>BLOOD GROUP</Text>
-                                    <Text style={styles.bloodGroup}>{patientProfile?.blood_group || 'O+ Positive'}</Text>
-                                </View>
-                                <View>
-                                    <Text style={styles.summaryLabel}>LAST VISIT</Text>
-                                    <Text style={styles.lastVisit}>{patientProfile?.last_visit || 'Oct 24, 2023'}</Text>
+                                    <Text style={styles.bloodGroup}>{patientProfile?.blood_group || 'N/A'}</Text>
                                 </View>
                             </View>
                         </View>
@@ -221,7 +206,7 @@ export default function HomeScreen() {
                                     <Ionicons name="calendar-outline" size={24} color="#008080" />
                                 </View>
                                 <Text style={styles.metricTitle}>My Appointments</Text>
-                                <Text style={styles.metricSubtitle}>{appointments.length} UPCOMING</Text>
+                                <Text style={styles.metricSubtitle}>{appointments.filter(a => a.status === 'pending' || a.status === 'confirmed').length} UPCOMING</Text>
                             </Pressable>
                             <Pressable style={styles.metricCard} onPress={() => router.push('/prescriptions-list')}>
                                 <View style={[styles.metricIconCircle, { backgroundColor: '#eefaf6' }]}>
@@ -240,22 +225,26 @@ export default function HomeScreen() {
                                 </Pressable>
                             </View>
 
-                            <Pressable style={styles.reportItem} onPress={() => router.push('/lab-tests')}>
-                                <View style={styles.reportIconCircle}>
-                                    <Ionicons name="document-text-outline" size={20} color="#008080" />
+                            {labTests.length > 0 ? (
+                                labTests.slice(0, 2).map((test) => (
+                                    <Pressable key={test.id} style={[styles.reportItem, { marginBottom: 10 }]} onPress={() => router.push('/lab-tests')}>
+                                        <View style={styles.reportIconCircle}>
+                                            <Ionicons name="document-text-outline" size={20} color="#008080" />
+                                        </View>
+                                        <View style={styles.reportInfo}>
+                                            <Text style={styles.reportTitle}>{test.test_name}</Text>
+                                            <Text style={styles.reportDate}>
+                                                {test.status.toUpperCase()}{test.lab_name ? ` • ${test.lab_name}` : ''}
+                                            </Text>
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={20} color="#6f7f79" />
+                                    </Pressable>
+                                ))
+                            ) : (
+                                <View style={styles.emptyCard}>
+                                    <Text style={styles.emptyCardText}>No reports uploaded yet.</Text>
                                 </View>
-                                <View style={styles.reportInfo}>
-                                    <Text style={styles.reportTitle}>
-                                        {labTests.length > 0 ? labTests[0].test_name : 'No reports uploaded yet'}
-                                    </Text>
-                                    <Text style={styles.reportDate}>
-                                        {labTests.length > 0 
-                                            ? `${labTests[0].status.toUpperCase()} • ${labTests[0].order_date.toUpperCase()}`
-                                            : 'Please upload your reports in the Health tab.'}
-                                    </Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#6f7f79" />
-                            </Pressable>
+                            )}
                         </View>
                     </>
                 )}

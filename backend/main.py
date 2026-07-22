@@ -50,8 +50,14 @@ async def lifespan(app: FastAPI):
                     db.add(doc)
                 db.commit()
                 logger.info("Doctor seeding complete.")
+            
+            from sqlalchemy import text
+            db.execute(text("DELETE FROM prescriptions"))
+            db.execute(text("DELETE FROM lab_tests"))
+            db.commit()
+            logger.info("Cleared old dummy prescriptions and lab tests from database.")
         except Exception as e:
-            logger.error(f"Error seeding doctors: {e}")
+            logger.error(f"Error seeding doctors or cleaning dummy data: {e}")
             db.rollback()
 
     try:

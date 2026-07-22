@@ -1,32 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, View, Text, Pressable, SafeAreaView, ScrollView, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
-interface DateItem {
+interface DynamicDateItem {
     id: number;
     month: string;
     dayNum: string;
     dayName: string;
+    fullDateStr: string;
 }
 
-const DATES: DateItem[] = [
-    { id: 1, month: 'OCT', dayNum: '12', dayName: 'Today' },
-    { id: 2, month: 'OCT', dayNum: '13', dayName: 'Sun' },
-    { id: 3, month: 'OCT', dayNum: '14', dayName: 'Mon' },
-    { id: 4, month: 'OCT', dayNum: '15', dayName: 'Tue' },
-    { id: 5, month: 'OCT', dayNum: '16', dayName: 'Wed' },
-    { id: 6, month: 'OCT', dayNum: '17', dayName: 'Thu' }
-];
+const generate30DaysCalendar = (): DynamicDateItem[] => {
+    const dates: DynamicDateItem[] = [];
+    const today = new Date();
+
+    for (let i = 0; i < 30; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+
+        const monthStr = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+        const dayNum = String(d.getDate());
+        const dayNameShort = d.toLocaleDateString('en-US', { weekday: 'short' });
+        const dayName = i === 0 ? 'Today' : dayNameShort;
+        const fullDateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        dates.push({
+            id: i + 1,
+            month: monthStr,
+            dayNum: dayNum,
+            dayName: dayName,
+            fullDateStr: fullDateStr,
+        });
+    }
+    return dates;
+};
 
 export default function SelectSlotScreen() {
     const params = useLocalSearchParams();
     const doctorName = (params.doctorName as string) || 'Dr. Julian Thorne';
     const doctorId = (params.doctorId as string) || '';
+    const hospital = (params.hospital as string) || '';
     const clinicAddress = (params.clinicAddress as string) || '';
     const clinicLat = (params.clinicLat as string) || '';
     const clinicLng = (params.clinicLng as string) || '';
 
+    const datesList = useMemo(() => generate30DaysCalendar(), []);
     const [selectedDate, setSelectedDate] = useState(1);
     const [selectedSlot, setSelectedSlot] = useState('09:30 AM');
 
@@ -55,14 +74,15 @@ export default function SelectSlotScreen() {
     ];
 
     const handleConfirmSlot = () => {
-        const selectedDateObj = DATES.find(d => d.id === selectedDate);
-        const dateStr = selectedDateObj ? `${selectedDateObj.month} ${selectedDateObj.dayNum}, 2026` : 'OCT 12, 2026';
+        const selectedDateObj = datesList.find(d => d.id === selectedDate) || datesList[0];
+        const dateStr = selectedDateObj.fullDateStr;
 
         router.push({
             pathname: '/appointment-summary',
             params: {
                 doctorName: doctorName,
                 doctorId: doctorId,
+                hospital: hospital,
                 clinicAddress: clinicAddress,
                 clinicLat: clinicLat,
                 clinicLng: clinicLng,
@@ -115,7 +135,7 @@ export default function SelectSlotScreen() {
                 {/* Horizontal Date List */}
                 <View style={styles.dateCarousel}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateScroll}>
-                        {DATES.map((date) => {
+                        {datesList.map((date) => {
                             const isSelected = selectedDate === date.id;
                             return (
                                 <Pressable

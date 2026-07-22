@@ -109,6 +109,7 @@ def run_headless_load_test():
 
 if __name__ == "__main__":
     try:
+        # pyrefly: ignore [missing-import]
         import locust
     except ImportError:
         subprocess.run([sys.executable, "-m", "pip", "install", "locust", "-q"], check=False)

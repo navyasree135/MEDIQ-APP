@@ -16,14 +16,7 @@ export default function MedicineViewScreen() {
     const [sideEffectsExpanded, setSideEffectsExpanded] = useState(false);
 
     const handleKeepAsDone = () => {
-        // Return back to Home and cue the medicine buzz alarm alert in 2.5 seconds
-        router.replace({
-            pathname: '/(tabs)',
-            params: {
-                triggerPillAlert: 'true',
-                medName: medicineName,
-            }
-        });
+        router.replace('/(tabs)');
     };
 
     return (
@@ -78,37 +71,7 @@ export default function MedicineViewScreen() {
                     </View>
                 </View>
 
-                {/* Reminder Schedule */}
-                <View style={styles.section}>
-                    <View style={styles.reminderRowHeader}>
-                        <Text style={styles.sectionTitle}>REMINDER TIMES</Text>
-                        <Switch
-                            value={reminderEnabled}
-                            onValueChange={setReminderEnabled}
-                            trackColor={{ false: '#e8f2f4', true: '#00cc99' }}
-                            thumbColor={Platform.OS === 'ios' ? undefined : '#ffffff'}
-                        />
-                    </View>
-                    
-                    {reminderEnabled && (
-                        <View style={styles.timesContainer}>
-                            <View style={styles.timeItem}>
-                                <Ionicons name="time-outline" size={18} color="#008080" />
-                                <Text style={styles.timeText}>08:00 AM</Text>
-                            </View>
-                            <View style={styles.divider} />
-                            <View style={styles.timeItem}>
-                                <Ionicons name="time-outline" size={18} color="#008080" />
-                                <Text style={styles.timeText}>02:00 PM</Text>
-                            </View>
-                            <View style={styles.divider} />
-                            <View style={styles.timeItem}>
-                                <Ionicons name="time-outline" size={18} color="#008080" />
-                                <Text style={styles.timeText}>10:00 PM</Text>
-                            </View>
-                        </View>
-                    )}
-                </View>
+
 
                 {/* Side Effects Accordion Dropdown */}
                 <View style={styles.section}>

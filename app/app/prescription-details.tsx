@@ -47,6 +47,10 @@ export default function PrescriptionDetailsScreen() {
             }
         ];
 
+    const labTests: string[] = params.labTests
+        ? JSON.parse(params.labTests as string)
+        : [];
+
     const handleMedicineClick = (med: Medicine) => {
         router.push({
             pathname: '/medicine-view',
@@ -61,6 +65,51 @@ export default function PrescriptionDetailsScreen() {
         });
     };
 
+    const handleDownload = () => {
+        const medsList = medicines && medicines.length > 0
+            ? medicines.map((m, idx) => `${idx + 1}. ${m.name}\n   - Dosage:       ${m.dosage || 'As directed'}\n   - Frequency:    ${m.frequency || 'As directed'}\n   - Duration:     ${m.duration || 'As directed'}\n   - Instructions: ${m.instructionText || m.instruction || 'As directed'}`).join('\n\n')
+            : 'No medication details listed.';
+
+        const labTestsList = labTests && labTests.length > 0
+            ? labTests.map((t, idx) => `• ${t}`).join('\n')
+            : 'No tests mentioned';
+
+        const content = `==================================================
+           MEDIQ CLINICAL PRESCRIPTION           
+==================================================
+Doctor:    ${doctorName}
+Specialty: ${specialty}
+Hospital:  ${hospital}
+Date:      ${dateStr}
+--------------------------------------------------
+MEDICATIONS PRESCRIBED:
+
+${medsList}
+
+--------------------------------------------------
+RECOMMENDED LAB TESTS:
+
+${labTestsList}
+
+==================================================
+        Official Digital Medical Record
+==================================================`;
+
+        if (Platform.OS === 'web') {
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Prescription_${doctorName.replace(/\s+/g, '_')}_${dateStr.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } else {
+            Alert.alert('Download Complete', `Prescription document from ${doctorName} has been downloaded to your storage.`);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.safeArea}>
             {/* Header */}
@@ -70,7 +119,7 @@ export default function PrescriptionDetailsScreen() {
                 </Pressable>
                 <Text style={styles.headerTitle}>Your Prescription</Text>
                 <View style={styles.headerRight}>
-                    <Pressable style={styles.headerBtn} onPress={() => Alert.alert('Download', 'Downloading prescription PDF...')}>
+                    <Pressable style={styles.headerBtn} onPress={handleDownload}>
                         <Ionicons name="download-outline" size={22} color="#ffffff" />
                     </Pressable>
                     <Pressable style={styles.headerBtn} onPress={() => Alert.alert('Share', 'Sharing prescription link...')}>
@@ -155,27 +204,21 @@ export default function PrescriptionDetailsScreen() {
                     <Text style={styles.sectionTitle}>Lab Tests Recommended</Text>
                     <View style={styles.labCard}>
                         <View style={styles.labIconOuter}>
-                            <Ionicons name="beaker-outline" size={24} color="#008080" />
+                            <Ionicons name="beaker-outline" size={24} color={labTests.length > 0 ? "#008080" : "#a3b5bc"} />
                         </View>
                         <View style={styles.labList}>
-                            <Text style={styles.labItem}>•  Complete Blood Count (CBC)</Text>
-                            <Text style={styles.labItem}>•  Lipid Profile</Text>
-                            <Text style={styles.labItem}>•  HbA1c Test</Text>
+                            {labTests.length > 0 ? (
+                                labTests.map((test, index) => (
+                                    <Text key={index} style={styles.labItem}>•  {test}</Text>
+                                ))
+                            ) : (
+                                <Text style={[styles.labItem, { color: '#6f7f79', fontStyle: 'italic' }]}>No tests mentioned</Text>
+                            )}
                         </View>
                     </View>
                 </View>
 
-                {/* Follow up block card */}
-                <View style={styles.followupCard}>
-                    <Ionicons name="calendar-outline" size={24} color="#ffffff" />
-                    <View style={styles.followupInfo}>
-                        <Text style={styles.followupLabel}>FOLLOW-UP DATE</Text>
-                        <Text style={styles.followupDate}>Nov 15, 2023</Text>
-                    </View>
-                    <Pressable style={styles.remindBtn} onPress={() => Alert.alert('Reminder Set', 'We will alert you for your follow-up appointment.')}>
-                        <Text style={styles.remindBtnText}>Remind Me</Text>
-                    </Pressable>
-                </View>
+
             </ScrollView>
         </SafeAreaView>
     );

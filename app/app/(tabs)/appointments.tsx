@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, Text, Pressable, SafeAreaView, ScrollView, Platform, Alert, ActivityIndicator, Modal } from 'react-native';
+import { StyleSheet, View, Text, Pressable, SafeAreaView, ScrollView, Platform, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,7 +10,9 @@ import {
     updateAppointmentStatus, 
     fetchPatientById, 
     fetchPatientPrescriptions, 
-    fetchPatientLabTests 
+    fetchPatientLabTests,
+    doctorCreatePrescription,
+    doctorCreateLabTest,
 } from '@/lib/api';
 import type { Appointment, PatientProfile, Prescription, LabTest } from '@/lib/types';
 
@@ -26,6 +28,30 @@ export default function AppointmentsScreen() {
     const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
     const [patientPrescriptions, setPatientPrescriptions] = useState<Prescription[]>([]);
     const [patientLabTests, setPatientLabTests] = useState<LabTest[]>([]);
+
+    // Prescription form modal state (Doctor console only)
+    const [isPrescriptionModalVisible, setIsPrescriptionModalVisible] = useState(false);
+    const [submittingPrescription, setSubmittingPrescription] = useState(false);
+    const [prescriptionTarget, setPrescriptionTarget] = useState<{ patientId: number; patientName: string; appointmentDate: string; doctorName: string; specialty: string; location: string } | null>(null);
+    const [rxMedicine, setRxMedicine] = useState('');
+    const [rxDosage, setRxDosage] = useState('');
+    const [rxFrequency, setRxFrequency] = useState('');
+    const [rxDuration, setRxDuration] = useState('');
+    const [rxLabTests, setRxLabTests] = useState('');
+    const [rxNotes, setRxNotes] = useState('');
+
+    // Tests Taken state
+    const [hasTakenTests, setHasTakenTests] = useState<'no' | 'yes'>('no');
+    const [selectedTests, setSelectedTests] = useState<{ sugar: boolean; bp: boolean; cbc: boolean; heart: boolean }>({
+        sugar: false,
+        bp: false,
+        cbc: false,
+        heart: false,
+    });
+    const [sugarReading, setSugarReading] = useState('');
+    const [bpReading, setBpReading] = useState('');
+    const [cbcResult, setCbcResult] = useState('');
+    const [heartResult, setHeartResult] = useState('');
 
     const loadAppointments = useCallback(async () => {
         if (!token) {
@@ -49,33 +75,42 @@ export default function AppointmentsScreen() {
         }, [loadAppointments])
     );
 
+    // Cross-platform alert helpers (Alert.alert is silently ignored on web)
+    const showAlert = (title: string, message: string) => {
+        if (Platform.OS === 'web') {
+            window.alert(`${title}\n${message}`);
+        } else {
+            Alert.alert(title, message);
+        }
+    };
+
+    const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm(`${title}\n${message}`)) {
+                onConfirm();
+            }
+        } else {
+            Alert.alert(title, message, [
+                { text: 'No', style: 'cancel' },
+                { text: 'Yes', style: 'destructive', onPress: onConfirm },
+            ]);
+        }
+    };
+
     const handleCancelAppointment = (id: number) => {
-        Alert.alert(
+        showConfirm(
             'Cancel Appointment',
             'Are you sure you want to cancel this appointment?',
-            [
-                { text: 'No', style: 'cancel' },
-                {
-                    text: 'Yes, Cancel',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            if (!token) return;
-                            // Doctor updates directly, patient will also map to cancelled
-                            if (user?.role === 'doctor') {
-                                await updateAppointmentStatus(token, id, 'cancelled');
-                            } else {
-                                // Default system-level fallback: allow patient cancellation via update status
-                                await updateAppointmentStatus(token, id, 'cancelled');
-                            }
-                            Alert.alert('Success', 'Appointment has been cancelled successfully.');
-                            void loadAppointments();
-                        } catch (err) {
-                            Alert.alert('Error', 'Failed to cancel appointment.');
-                        }
-                    }
+            async () => {
+                try {
+                    if (!token) return;
+                    await updateAppointmentStatus(token, id, 'cancelled');
+                    showAlert('Success', 'Appointment has been cancelled successfully.');
+                    void loadAppointments();
+                } catch (err) {
+                    showAlert('Error', 'Failed to cancel appointment. Please try again.');
                 }
-            ]
+            }
         );
     };
 
@@ -83,10 +118,10 @@ export default function AppointmentsScreen() {
         try {
             if (!token) return;
             await updateAppointmentStatus(token, id, 'confirmed');
-            Alert.alert('Success', 'Appointment has been confirmed.');
+            showAlert('Success', 'Appointment has been confirmed.');
             void loadAppointments();
         } catch (err) {
-            Alert.alert('Error', 'Failed to confirm appointment.');
+            showAlert('Error', 'Failed to confirm appointment.');
         }
     };
 
@@ -94,10 +129,130 @@ export default function AppointmentsScreen() {
         try {
             if (!token) return;
             await updateAppointmentStatus(token, id, 'completed');
-            Alert.alert('Success', 'Appointment marked as completed.');
+            showAlert('Success', 'Appointment marked as completed.');
             void loadAppointments();
         } catch (err) {
-            Alert.alert('Error', 'Failed to complete appointment.');
+            showAlert('Error', 'Failed to complete appointment.');
+        }
+    };
+
+    const handleOpenPrescriptionForm = (item: Appointment) => {
+        const dateStr = new Date(item.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        setPrescriptionTarget({
+            patientId: item.patient_id,
+            patientName: item.patient_name || 'Patient',
+            appointmentDate: dateStr,
+            doctorName: item.doctor_name || '',
+            specialty: item.specialty || '',
+            location: item.location || '',
+        });
+        setRxMedicine('');
+        setRxDosage('');
+        setRxFrequency('');
+        setRxDuration('');
+        setRxLabTests('');
+        setRxNotes('');
+
+        setHasTakenTests('no');
+        setSelectedTests({ sugar: false, bp: false, cbc: false, heart: false });
+        setSugarReading('');
+        setBpReading('');
+        setCbcResult('');
+        setHeartResult('');
+
+        setIsPrescriptionModalVisible(true);
+    };
+
+    const handleSubmitPrescription = async () => {
+        if (!token || !prescriptionTarget) return;
+        if (!rxMedicine.trim()) {
+            showAlert('Missing Field', 'Please enter at least one medicine name.');
+            return;
+        }
+        setSubmittingPrescription(true);
+        try {
+            const medicinesArray = [{
+                name: rxMedicine.trim(),
+                dosage: rxDosage.trim() || 'As directed',
+                frequency: rxFrequency.trim() || 'As directed',
+                duration: rxDuration.trim() || 'As directed',
+            }];
+            const labTestsArray = rxLabTests
+                .split('\n')
+                .flatMap(line => line.split(','))
+                .map(item => item.trim())
+                .filter(Boolean);
+
+            const payloadData = {
+                medicines: medicinesArray,
+                labTests: labTestsArray,
+            };
+
+            await doctorCreatePrescription(token, prescriptionTarget.patientId, {
+                doctor_name: prescriptionTarget.doctorName,
+                specialty: prescriptionTarget.specialty,
+                hospital: prescriptionTarget.location,
+                date: prescriptionTarget.appointmentDate,
+                image_url: null,
+                medicines_json: JSON.stringify(payloadData),
+            });
+
+            // Create Lab Test records for Patient Dashboard if tests taken = yes
+            if (hasTakenTests === 'yes') {
+                const testsToCreate = [];
+                if (selectedTests.sugar) {
+                    testsToCreate.push({
+                        test_name: 'Blood Sugar Test',
+                        lab_name: sugarReading.trim() ? `Reading: ${sugarReading.trim()}` : 'Blood Glucose Evaluation',
+                        order_date: prescriptionTarget.appointmentDate,
+                        status: 'COMPLETED',
+                        file_name: null,
+                    });
+                }
+                if (selectedTests.bp) {
+                    testsToCreate.push({
+                        test_name: 'Blood Pressure (BP) Check',
+                        lab_name: bpReading.trim() ? `Reading: ${bpReading.trim()}` : 'Blood Pressure Assessment',
+                        order_date: prescriptionTarget.appointmentDate,
+                        status: 'COMPLETED',
+                        file_name: null,
+                    });
+                }
+                if (selectedTests.cbc) {
+                    testsToCreate.push({
+                        test_name: 'Complete Blood Count (CBC)',
+                        lab_name: cbcResult.trim() ? `Result: ${cbcResult.trim()}` : 'Complete Blood Count Report',
+                        order_date: prescriptionTarget.appointmentDate,
+                        status: 'COMPLETED',
+                        file_name: null,
+                    });
+                }
+                if (selectedTests.heart) {
+                    testsToCreate.push({
+                        test_name: 'Heart / Cardiac Test',
+                        lab_name: heartResult.trim() ? `Result: ${heartResult.trim()}` : 'Cardiac Evaluation Report',
+                        order_date: prescriptionTarget.appointmentDate,
+                        status: 'COMPLETED',
+                        file_name: null,
+                    });
+                }
+
+                for (const testPayload of testsToCreate) {
+                    try {
+                        await doctorCreateLabTest(token, prescriptionTarget.patientId, testPayload);
+                    } catch (labErr) {
+                        console.error('Error creating lab test record:', labErr);
+                    }
+                }
+            }
+
+            setIsPrescriptionModalVisible(false);
+            showAlert('Prescription & Reports Sent', `Prescription and test records for ${prescriptionTarget.patientName} have been recorded successfully.`);
+        } catch (err) {
+            console.error('Prescription submit error:', err);
+            showAlert('Error', err instanceof Error ? err.message : 'Failed to submit prescription. Please try again.');
+        } finally {
+            setSubmittingPrescription(false);
         }
     };
 
@@ -211,12 +366,7 @@ export default function AppointmentsScreen() {
                 <View style={styles.divider} />
 
                 <View style={styles.cardFooter}>
-                    {item.status !== 'cancelled' && item.status !== 'completed' && (
-                        <Pressable style={styles.cancelBtn} onPress={() => handleCancelAppointment(item.id)}>
-                            <Text style={styles.cancelBtnText}>Cancel</Text>
-                        </Pressable>
-                    )}
-                    <Pressable style={styles.detailsBtn} onPress={() => handleViewDetails(item)}>
+                    <Pressable style={[styles.detailsBtn, { flex: 1 }]} onPress={() => handleViewDetails(item)}>
                         <Text style={styles.detailsBtnText}>View Details</Text>
                     </Pressable>
                 </View>
@@ -240,12 +390,6 @@ export default function AppointmentsScreen() {
                     <View style={styles.doctorInfo}>
                         <Text style={styles.doctorName}>{item.patient_name || 'Patient Profile'}</Text>
                         <Text style={styles.clinicName}>Contact: {item.patient_phone || 'Not provided'}</Text>
-                        {item.notes ? (
-                            <Text style={styles.patientNotes} numberOfLines={2}>Notes: "{item.notes}"</Text>
-                        ) : null}
-                    </View>
-                    <View style={[styles.statusBadge, isConfirmed ? styles.badgeConfirmed : isPending ? styles.badgePending : styles.badgeDefault]}>
-                        <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
                     </View>
                 </View>
 
@@ -286,6 +430,12 @@ export default function AppointmentsScreen() {
                         {isConfirmed && (
                             <Pressable style={styles.completeActionBtn} onPress={() => handleCompleteAppointment(item.id)}>
                                 <Text style={styles.completeActionBtnText}>Complete</Text>
+                            </Pressable>
+                        )}
+                        {item.status === 'completed' && (
+                            <Pressable style={styles.prescriptionBtn} onPress={() => handleOpenPrescriptionForm(item)}>
+                                <Ionicons name="document-text-outline" size={13} color="#ffffff" style={{ marginRight: 3 }} />
+                                <Text style={styles.prescriptionBtnText}>Write Rx</Text>
                             </Pressable>
                         )}
                         {(isPending || isConfirmed) && (
@@ -357,6 +507,222 @@ export default function AppointmentsScreen() {
                     </View>
                 )}
             </ScrollView>
+
+            {/* Prescription Form Modal (Doctor View Only) */}
+            <Modal
+                visible={isPrescriptionModalVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setIsPrescriptionModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { maxHeight: '85%' }]}>
+                        <View style={styles.modalHeader}>
+                            <View>
+                                <Text style={styles.modalTitle}>Write Prescription</Text>
+                                <Text style={styles.modalSubtitleText}>For: {prescriptionTarget?.patientName}</Text>
+                            </View>
+                            <Pressable onPress={() => setIsPrescriptionModalVisible(false)} style={styles.closeModalBtn}>
+                                <Ionicons name="close" size={24} color="#002b40" />
+                            </Pressable>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                            <View style={styles.rxFormSection}>
+                                <Text style={styles.rxLabel}>Medicine Name *</Text>
+                                <TextInput
+                                    style={styles.rxInput}
+                                    placeholder="e.g. Paracetamol 500mg"
+                                    placeholderTextColor="#a3b5bc"
+                                    value={rxMedicine}
+                                    onChangeText={setRxMedicine}
+                                />
+                            </View>
+                            <View style={styles.rxFormSection}>
+                                <Text style={styles.rxLabel}>Dosage</Text>
+                                <TextInput
+                                    style={styles.rxInput}
+                                    placeholder="e.g. 1 tablet"
+                                    placeholderTextColor="#a3b5bc"
+                                    value={rxDosage}
+                                    onChangeText={setRxDosage}
+                                />
+                            </View>
+                            <View style={styles.rxFormSection}>
+                                <Text style={styles.rxLabel}>Frequency</Text>
+                                <TextInput
+                                    style={styles.rxInput}
+                                    placeholder="e.g. Twice daily after meals"
+                                    placeholderTextColor="#a3b5bc"
+                                    value={rxFrequency}
+                                    onChangeText={setRxFrequency}
+                                />
+                            </View>
+                            <View style={styles.rxFormSection}>
+                                <Text style={styles.rxLabel}>Duration</Text>
+                                <TextInput
+                                    style={styles.rxInput}
+                                    placeholder="e.g. 5 days"
+                                    placeholderTextColor="#a3b5bc"
+                                    value={rxDuration}
+                                    onChangeText={setRxDuration}
+                                />
+                            </View>
+                            <View style={styles.rxFormSection}>
+                                <Text style={styles.rxLabel}>Recommended Lab Tests (Optional)</Text>
+                                <TextInput
+                                    style={styles.rxInput}
+                                    placeholder="e.g. Complete Blood Count, Lipid Profile"
+                                    placeholderTextColor="#a3b5bc"
+                                    value={rxLabTests}
+                                    onChangeText={setRxLabTests}
+                                />
+                            </View>
+
+                            {/* Any Tests Taken Section */}
+                            <View style={styles.rxFormSection}>
+                                <Text style={styles.rxLabel}>Any Tests Taken By Patient?</Text>
+                                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10, marginTop: 4 }}>
+                                    <Pressable
+                                        style={[styles.testChoiceBtn, hasTakenTests === 'no' && styles.testChoiceBtnActive]}
+                                        onPress={() => setHasTakenTests('no')}
+                                    >
+                                        <Text style={[styles.testChoiceBtnText, hasTakenTests === 'no' && styles.testChoiceBtnTextActive]}>No</Text>
+                                    </Pressable>
+                                    <Pressable
+                                        style={[styles.testChoiceBtn, hasTakenTests === 'yes' && styles.testChoiceBtnActive]}
+                                        onPress={() => setHasTakenTests('yes')}
+                                    >
+                                        <Text style={[styles.testChoiceBtnText, hasTakenTests === 'yes' && styles.testChoiceBtnTextActive]}>Yes</Text>
+                                    </Pressable>
+                                </View>
+
+                                {hasTakenTests === 'yes' && (
+                                    <View style={styles.testCategoryContainer}>
+                                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#002b40', marginBottom: 10 }}>
+                                            Select Conducted Tests & Enter Details:
+                                        </Text>
+
+                                        {/* Sugar */}
+                                        <Pressable
+                                            style={styles.testCheckRow}
+                                            onPress={() => setSelectedTests(prev => ({ ...prev, sugar: !prev.sugar }))}
+                                        >
+                                            <Ionicons
+                                                name={selectedTests.sugar ? "checkbox" : "square-outline"}
+                                                size={20}
+                                                color={selectedTests.sugar ? "#008080" : "#6f7f79"}
+                                            />
+                                            <Text style={styles.testCheckLabel}>Sugar Test (Blood Glucose)</Text>
+                                        </Pressable>
+                                        {selectedTests.sugar && (
+                                            <TextInput
+                                                style={[styles.rxInput, { marginBottom: 10 }]}
+                                                placeholder="e.g. 140 mg/dL (Fasting)"
+                                                placeholderTextColor="#a3b5bc"
+                                                value={sugarReading}
+                                                onChangeText={setSugarReading}
+                                            />
+                                        )}
+
+                                        {/* BP */}
+                                        <Pressable
+                                            style={styles.testCheckRow}
+                                            onPress={() => setSelectedTests(prev => ({ ...prev, bp: !prev.bp }))}
+                                        >
+                                            <Ionicons
+                                                name={selectedTests.bp ? "checkbox" : "square-outline"}
+                                                size={20}
+                                                color={selectedTests.bp ? "#008080" : "#6f7f79"}
+                                            />
+                                            <Text style={styles.testCheckLabel}>Blood Pressure (BP)</Text>
+                                        </Pressable>
+                                        {selectedTests.bp && (
+                                            <TextInput
+                                                style={[styles.rxInput, { marginBottom: 10 }]}
+                                                placeholder="e.g. 120/80 mmHg"
+                                                placeholderTextColor="#a3b5bc"
+                                                value={bpReading}
+                                                onChangeText={setBpReading}
+                                            />
+                                        )}
+
+                                        {/* CBC */}
+                                        <Pressable
+                                            style={styles.testCheckRow}
+                                            onPress={() => setSelectedTests(prev => ({ ...prev, cbc: !prev.cbc }))}
+                                        >
+                                            <Ionicons
+                                                name={selectedTests.cbc ? "checkbox" : "square-outline"}
+                                                size={20}
+                                                color={selectedTests.cbc ? "#008080" : "#6f7f79"}
+                                            />
+                                            <Text style={styles.testCheckLabel}>CBC (Complete Blood Count)</Text>
+                                        </Pressable>
+                                        {selectedTests.cbc && (
+                                            <TextInput
+                                                style={[styles.rxInput, { marginBottom: 10 }]}
+                                                placeholder="e.g. Hb: 13.5 g/dL, Normal count"
+                                                placeholderTextColor="#a3b5bc"
+                                                value={cbcResult}
+                                                onChangeText={setCbcResult}
+                                            />
+                                        )}
+
+                                        {/* Heart Test */}
+                                        <Pressable
+                                            style={styles.testCheckRow}
+                                            onPress={() => setSelectedTests(prev => ({ ...prev, heart: !prev.heart }))}
+                                        >
+                                            <Ionicons
+                                                name={selectedTests.heart ? "checkbox" : "square-outline"}
+                                                size={20}
+                                                color={selectedTests.heart ? "#008080" : "#6f7f79"}
+                                            />
+                                            <Text style={styles.testCheckLabel}>Heart Test (ECG / Echo)</Text>
+                                        </Pressable>
+                                        {selectedTests.heart && (
+                                            <TextInput
+                                                style={[styles.rxInput, { marginBottom: 10 }]}
+                                                placeholder="e.g. Normal Sinus Rhythm, ECG Clear"
+                                                placeholderTextColor="#a3b5bc"
+                                                value={heartResult}
+                                                onChangeText={setHeartResult}
+                                            />
+                                        )}
+                                    </View>
+                                )}
+                            </View>
+                            <View style={styles.rxFormSection}>
+                                <Text style={styles.rxLabel}>Additional Notes</Text>
+                                <TextInput
+                                    style={[styles.rxInput, { height: 80, textAlignVertical: 'top' }]}
+                                    placeholder="Avoid alcohol, drink plenty of water..."
+                                    placeholderTextColor="#a3b5bc"
+                                    value={rxNotes}
+                                    onChangeText={setRxNotes}
+                                    multiline
+                                />
+                            </View>
+
+                            <Pressable
+                                style={[styles.rxSubmitBtn, submittingPrescription && { opacity: 0.6 }]}
+                                onPress={() => void handleSubmitPrescription()}
+                                disabled={submittingPrescription}
+                            >
+                                {submittingPrescription ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <>
+                                        <Ionicons name="checkmark-circle-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+                                        <Text style={styles.rxSubmitBtnText}>Submit Prescription</Text>
+                                    </>
+                                )}
+                            </Pressable>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Patient Records Modal (Doctor View Only) */}
             <Modal
@@ -513,6 +879,54 @@ export default function AppointmentsScreen() {
 }
 
 const styles = StyleSheet.create({
+    rxFormSection: {
+        marginBottom: 14,
+    },
+    rxLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#6f7f79',
+        letterSpacing: 0.5,
+        marginBottom: 6,
+        textTransform: 'uppercase',
+    },
+    rxInput: {
+        borderWidth: 1.5,
+        borderColor: '#e8f2f4',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        fontSize: 14,
+        color: '#002b40',
+        backgroundColor: '#f6fafb',
+    },
+    rxSubmitBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#008080',
+        borderRadius: 14,
+        paddingVertical: 14,
+        marginTop: 8,
+    },
+    rxSubmitBtnText: {
+        color: '#ffffff',
+        fontWeight: '800',
+        fontSize: 15,
+    },
+    prescriptionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#008080',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    prescriptionBtnText: {
+        color: '#ffffff',
+        fontSize: 12,
+        fontWeight: '700',
+    },
     safeArea: {
         flex: 1,
         backgroundColor: '#ffffff',
@@ -1020,5 +1434,46 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#dc2626',
         fontWeight: '600',
+    },
+    testChoiceBtn: {
+        flex: 1,
+        height: 38,
+        borderRadius: 10,
+        backgroundColor: '#f1f5f9',
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    testChoiceBtnActive: {
+        backgroundColor: '#008080',
+        borderColor: '#008080',
+    },
+    testChoiceBtnText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#475569',
+    },
+    testChoiceBtnTextActive: {
+        color: '#ffffff',
+    },
+    testCategoryContainer: {
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 12,
+        padding: 12,
+        marginTop: 6,
+    },
+    testCheckRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        gap: 8,
+    },
+    testCheckLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#1e293b',
     },
 });

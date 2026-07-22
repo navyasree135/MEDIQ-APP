@@ -4,6 +4,7 @@ MediQ API Load Testing Script (Locust)
 Simulates concurrent user requests against the FastAPI backend endpoints
 to monitor performance under concurrent load.
 """
+# pyrefly: ignore [missing-import]
 from locust import HttpUser, task, between
 
 class MediQLoadTestUser(HttpUser):

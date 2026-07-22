@@ -137,22 +137,41 @@ def update_appointment_status(
     appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
     if not appt:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
-    
-    if user.role != UserRole.DOCTOR:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only doctors can update status")
-        
-    if appt.doctor.user_id != user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-        
+
     try:
         new_status = AppointmentStatus(status_val.lower())
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status value")
-        
+
+    if user.role == UserRole.DOCTOR:
+        # Resolve all doctor profile IDs that belong to this user (including legacy duplicates)
+        doctor = db.query(Doctor).filter(Doctor.user_id == user.id).first()
+        if not doctor:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Doctor profile not found")
+        doctor_ids = [doctor.id]
+        duplicate_ids = (
+            db.query(Doctor.id)
+            .filter(
+                Doctor.id != doctor.id,
+                func.lower(func.trim(Doctor.full_name)) == func.lower(func.trim(doctor.full_name)),
+                func.lower(func.trim(Doctor.specialty)) == func.lower(func.trim(doctor.specialty)),
+            )
+            .all()
+        )
+        doctor_ids.extend([row[0] for row in duplicate_ids])
+        if appt.doctor_id not in doctor_ids:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    else:
+        # Patient can only cancel their own appointment
+        if new_status != AppointmentStatus.CANCELLED:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Patients can only cancel appointments")
+        if appt.patient.user_id != user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
     appt.status = new_status
     db.commit()
     db.refresh(appt)
-    
+
     item = AppointmentResponse.model_validate(appt)
     item.doctor_name = appt.doctor.full_name
     item.specialty = appt.doctor.specialty

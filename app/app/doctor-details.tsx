@@ -63,6 +63,7 @@ export default function DoctorDetailsScreen() {
             params: {
                 doctorName: doctor.name,
                 doctorId: String(doctor.id),
+                hospital: doctor.location || '',
                 clinicAddress: doctor.clinicAddress || '',
                 clinicLat: doctor.clinicLat != null ? String(doctor.clinicLat) : '',
                 clinicLng: doctor.clinicLng != null ? String(doctor.clinicLng) : '',

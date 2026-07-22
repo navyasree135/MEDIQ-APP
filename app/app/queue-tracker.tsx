@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Pressable, SafeAreaView, ScrollView, Platform, Alert, Vibration, Image, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, Pressable, SafeAreaView, ScrollView, Platform, Image, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
-type StepType = 'leave_now' | 'directions' | 'live_tracker' | 'checked_in' | 'your_turn';
+type StepType = 'leave_now' | 'directions' | 'live_tracker' | 'checked_in';
 
 export default function QueueTrackerScreen() {
     const params = useLocalSearchParams();
@@ -60,73 +60,13 @@ export default function QueueTrackerScreen() {
 
     const [step, setStep] = useState<StepType>('leave_now');
     const [patientsAhead, setPatientsAhead] = useState(3);
-    const [buzzActive, setBuzzActive] = useState(false);
-
-    // Audio Buzz Notification simulator for Step 5
-    useEffect(() => {
-        if (step === 'your_turn') {
-            setBuzzActive(true);
-            // Simulate buzz sound using device vibration if supported
-            Vibration.vibrate([0, 500, 150, 500, 150, 500]);
-            
-            // Visual alert dialog to mimic high-priority sound alarm
-            Alert.alert(
-                '🔔 MediQ Buzz Notification',
-                'BUZZZ! BUZZZ! It is your turn! Please proceed to Room 4 immediately.',
-                [{ text: 'Dismiss Buzz', onPress: () => Vibration.cancel() }]
-            );
-        } else {
-            setBuzzActive(false);
-            Vibration.cancel();
-        }
-        return () => Vibration.cancel();
-    }, [step]);
-
-    // Handle next simulator steps
-    const handleFastForwardQueue = () => {
-        if (patientsAhead > 1) {
-            setPatientsAhead(prev => prev - 1);
-        } else if (patientsAhead === 1) {
-            setPatientsAhead(0);
-            setStep('your_turn');
-        }
-    };
 
     const handleDismiss = () => {
         router.back();
     };
 
     return (
-        <SafeAreaView style={[styles.safeArea, step === 'leave_now' || step === 'your_turn' ? styles.darkThemeBg : styles.lightThemeBg]}>
-            {/* Simulation Controller Panel at top (for testing easy transitions) */}
-            <View style={styles.simPanel}>
-                <Text style={styles.simLabel}>🧪 JOURNEY SIMULATOR:</Text>
-                {step === 'leave_now' && (
-                    <Pressable style={styles.simBtn} onPress={() => setStep('directions')}>
-                        <Text style={styles.simBtnText}>1. Route Map</Text>
-                    </Pressable>
-                )}
-                {step === 'directions' && (
-                    <Pressable style={styles.simBtn} onPress={() => setStep('live_tracker')}>
-                        <Text style={styles.simBtnText}>2. Reached Hospital 📍</Text>
-                    </Pressable>
-                )}
-                {step === 'live_tracker' && (
-                    <Pressable style={styles.simBtn} onPress={() => setStep('checked_in')}>
-                        <Text style={styles.simBtnText}>3. Check In</Text>
-                    </Pressable>
-                )}
-                {step === 'checked_in' && (
-                    <Pressable style={[styles.simBtn, { backgroundColor: '#ff4d4d' }]} onPress={handleFastForwardQueue}>
-                        <Text style={styles.simBtnText}>4. Fast-Forward Queue (Ahead: {patientsAhead}) ⏩</Text>
-                    </Pressable>
-                )}
-                {step === 'your_turn' && (
-                    <Pressable style={styles.simBtn} onPress={() => setStep('leave_now')}>
-                        <Text style={styles.simBtnText}>Reset Journey</Text>
-                    </Pressable>
-                )}
-            </View>
+        <SafeAreaView style={[styles.safeArea, step === 'leave_now' ? styles.darkThemeBg : styles.lightThemeBg]}>
 
             {/* SCREEN 1: Time to Leave Now! */}
             {step === 'leave_now' && (
@@ -140,29 +80,6 @@ export default function QueueTrackerScreen() {
 
                         <Text style={styles.darkTitle}>Time to Leave Now!</Text>
                         <Text style={styles.darkSubtitle}>Your appointment is in 45 minutes. Leave now to reach on time.</Text>
-
-                        {/* Travel stats row */}
-                        <View style={styles.travelRow}>
-                            <View style={styles.travelCard}>
-                                <Ionicons name="time-outline" size={24} color="#ffffff" style={{ opacity: 0.8 }} />
-                                <Text style={styles.travelVal}>35</Text>
-                                <Text style={styles.travelUnit}>min</Text>
-                                <Text style={styles.travelLabel}>TRAVEL TIME</Text>
-                            </View>
-
-                            <View style={styles.travelCard}>
-                                <Ionicons name="swap-horizontal" size={24} color="#ffffff" style={{ opacity: 0.8 }} />
-                                <Text style={styles.travelVal}>12.4</Text>
-                                <Text style={styles.travelUnit}>km</Text>
-                                <Text style={styles.travelLabel}>DISTANCE</Text>
-                            </View>
-                        </View>
-
-                        {/* Traffic alert card */}
-                        <View style={styles.trafficBanner}>
-                            <Ionicons name="alert-circle" size={18} color="#8ce6e6" />
-                            <Text style={styles.trafficText}>Traffic is moderate on Highway 10</Text>
-                        </View>
                     </View>
 
                     {/* Bottom Actions */}
@@ -413,50 +330,12 @@ export default function QueueTrackerScreen() {
                         </View>
                     </ScrollView>
 
-                    {/* Simulation counting helper */}
-                    <View style={styles.simulationControlCard}>
-                        <Pressable style={styles.simTriggerBtn} onPress={handleFastForwardQueue}>
-                            <Ionicons name="play-forward" size={18} color="#ffffff" style={{ marginRight: 6 }} />
-                            <Text style={styles.simTriggerBtnText}>Advance Queue (Simulate turn coming)</Text>
+                    {/* Bottom sticky Go to Home button */}
+                    <View style={styles.checkedInBottomBar}>
+                        <Pressable style={styles.goHomeBtn} onPress={() => router.replace('/(tabs)')}>
+                            <Ionicons name="home-outline" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+                            <Text style={styles.goHomeBtnText}>Go to Home</Text>
                         </Pressable>
-                    </View>
-                </View>
-            )}
-
-            {/* SCREEN 5: It's Your Turn! full screen buzz alert */}
-            {step === 'your_turn' && (
-                <View style={[styles.flexContainer, styles.darkThemeBg, { justifyContent: 'center' }]}>
-                    <View style={styles.yourTurnCenter}>
-                        {/* pulsing bell icon */}
-                        <View style={styles.bellPulseRing}>
-                            <View style={styles.bellInnerCircle}>
-                                <Ionicons name="notifications" size={60} color="#00cc99" />
-                            </View>
-                        </View>
-
-                        <Text style={styles.yourTurnTitle}>It's Your Turn!</Text>
-                        <Text style={styles.yourTurnSubtitle}>Please proceed to <Text style={styles.boldSubtitleText}>Room 4</Text></Text>
-
-                        {/* Ready status pill */}
-                        <View style={styles.readyPill}>
-                            <View style={styles.readyIndicatorPulse} />
-                            <Text style={styles.readyPillText}>{doctorName} is ready for you</Text>
-                        </View>
-                    </View>
-
-                    {/* On my way primary action */}
-                    <View style={styles.yourTurnBottomBar}>
-                        <Pressable style={styles.imOnMyWayBtn} onPress={() => router.replace({
-                            pathname: '/hospital-checkin',
-                            params: {
-                                doctorName: doctorName,
-                                tokenNumber: tokenNumber,
-                                hospital: hospital,
-                            }
-                        })}>
-                            <Text style={styles.imOnMyWayText}>I'm On My Way 🏃</Text>
-                        </Pressable>
-                        {/* MediQ footer removed */}
                     </View>
                 </View>
             )}
@@ -1158,5 +1037,25 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: '#6f7f79',
         fontWeight: '600',
+    },
+    checkedInBottomBar: {
+        backgroundColor: '#ffffff',
+        padding: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#e8f2f4',
+        paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    },
+    goHomeBtn: {
+        backgroundColor: '#008080',
+        height: 52,
+        borderRadius: 26,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    goHomeBtnText: {
+        color: '#ffffff',
+        fontWeight: '800',
+        fontSize: 16,
     },
 });

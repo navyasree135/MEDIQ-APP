@@ -17,15 +17,14 @@ import type {
 
 const explicitBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 
-function defaultBaseUrl(): string {
+function getBaseUrl(): string {
     if (Platform.OS === 'web') {
         return 'http://localhost:8000';
     }
-    // LAN IP for physical devices (Android/iOS via Expo Go)
-    return 'http://10.236.176.55:8000';
+    return (explicitBaseUrl && explicitBaseUrl.replace(/\/$/, '')) || 'http://10.113.22.55:8000';
 }
 
-export const API_BASE_URL = (explicitBaseUrl && explicitBaseUrl.replace(/\/$/, '')) || defaultBaseUrl();
+export const API_BASE_URL = getBaseUrl();
 
 export class ApiError extends Error {
     status: number;
@@ -128,6 +127,16 @@ export async function signup(payload: SignUpPayload): Promise<AuthUser> {
     return request<AuthUser>('/auth/signup', {
         method: 'POST',
         body: JSON.stringify(payload),
+    });
+}
+
+export async function resetPassword(email: string, newPassword: string): Promise<{ message: string }> {
+    return request<{ message: string }>('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({
+            email,
+            new_password: newPassword,
+        }),
     });
 }
 
@@ -256,12 +265,34 @@ export async function createPrescription(token: string, payload: Omit<Prescripti
     }, token);
 }
 
+export async function doctorCreatePrescription(
+    token: string,
+    patientId: number,
+    payload: Omit<Prescription, 'id' | 'patient_id' | 'created_at'>,
+): Promise<Prescription> {
+    return request<Prescription>(`/prescriptions/for-patient/${patientId}`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    }, token);
+}
+
 export async function fetchLabTests(token: string): Promise<LabTest[]> {
     return request<LabTest[]>('/lab_tests', { method: 'GET' }, token);
 }
 
 export async function createLabTest(token: string, payload: Omit<LabTest, 'id' | 'patient_id' | 'created_at'>): Promise<LabTest> {
     return request<LabTest>('/lab_tests', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    }, token);
+}
+
+export async function doctorCreateLabTest(
+    token: string,
+    patientId: number,
+    payload: Omit<LabTest, 'id' | 'patient_id' | 'created_at'>,
+): Promise<LabTest> {
+    return request<LabTest>(`/lab_tests/for-patient/${patientId}`, {
         method: 'POST',
         body: JSON.stringify(payload),
     }, token);
