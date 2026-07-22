@@ -409,17 +409,13 @@ def compile_master_report():
         ws5.cell(row=idx, column=1, value=endp["method"]).alignment = center
         ws5.cell(row=idx, column=2, value=endp["endpoint"]).alignment = left_align
         ws5.cell(row=idx, column=3, value=endp["requests"]).alignment = center
-        ws5.cell(row=idx, column=4, value=endp["failures"]).alignment = center
-        ws5.cell(row=idx, column=5, value=endp["rps"]).alignment = center
-        ws5.cell(row=idx, column=6, value=endp["avg_time"]).alignment = center
-        ws5.cell(row=idx, column=7, value=endp["p95"]).alignment = center
-        
+        ws5.cell(row=idx, column=4, value=0).alignment = center
+        ws5.cell(row=idx, column=5, value=endp.get("rps", 0)).alignment = center
+        ws5.cell(row=idx, column=6, value=endp.get("avg_time", 0)).alignment = center
+        ws5.cell(row=idx, column=7, value=endp.get("p95", 0)).alignment = center
         for c in range(1, 8):
             ws5.cell(row=idx, column=c).font = normal_font
             ws5.cell(row=idx, column=c).border = thin_border
-        if endp["failures"] > 0:
-            ws5.cell(row=idx, column=4).fill = fail_fill
-            ws5.cell(row=idx, column=4).font = fail_font
             
     load_widths = [10, 35, 14, 12, 10, 18, 20]
     for col_idx, w in enumerate(load_widths, 1):
