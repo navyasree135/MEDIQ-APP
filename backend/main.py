@@ -18,6 +18,7 @@ from backend.routers.chat import router as chat_router
 from backend.routers.agents import router as agents_router
 from backend.routers.prescriptions import router as prescriptions_router
 from backend.routers.lab_tests import router as lab_tests_router
+from backend.routers.report_explain import router as report_explain_router
 
 settings = get_settings()
 configure_logging()
@@ -114,6 +115,7 @@ app.include_router(chat_router)
 app.include_router(agents_router)
 app.include_router(prescriptions_router)
 app.include_router(lab_tests_router)
+app.include_router(report_explain_router)
 
 
 @app.get("/", summary="Root")

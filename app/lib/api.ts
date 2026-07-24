@@ -312,3 +312,58 @@ export async function fetchPatientLabTests(token: string, patientId: number): Pr
     return request<LabTest[]>(`/lab_tests/patient/${patientId}`, { method: 'GET' }, token);
 }
 
+export interface OcrUploadResponse {
+    status: string;
+    filename: string;
+    extraction_method: string;
+    extracted_text: string;
+    confidence_score: number;
+    character_count: number;
+}
+
+export interface ReportExplanationResponse {
+    status: string;
+    report_id: string;
+    doc_type: string;
+    explanation_markdown: string;
+    provider: string;
+    download_url: string;
+}
+
+export async function uploadReportFileForOcr(fileUri: string, fileName: string, fileType: string): Promise<OcrUploadResponse> {
+    const formData = new FormData();
+    if (Platform.OS === 'web') {
+        const res = await fetch(fileUri);
+        const blob = await res.blob();
+        formData.append('file', blob, fileName);
+    } else {
+        formData.append('file', {
+            uri: fileUri,
+            name: fileName,
+            type: fileType,
+        } as any);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/report-explain/upload`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`);
+    }
+
+    return response.json();
+}
+
+export async function explainReportText(extractedText: string, docType: string = 'lab_report'): Promise<ReportExplanationResponse> {
+    return request<ReportExplanationResponse>('/report-explain/explain', {
+        method: 'POST',
+        body: JSON.stringify({ extracted_text: extractedText, doc_type: docType }),
+    });
+}
+
+export function getReportDownloadUrl(reportId: string): string {
+    return `${API_BASE_URL}/report-explain/download/${reportId}`;
+}
+

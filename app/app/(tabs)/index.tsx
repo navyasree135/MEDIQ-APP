@@ -220,17 +220,24 @@ export default function HomeScreen() {
                         <View style={styles.metricsGrid}>
                             <Pressable style={styles.metricCard} onPress={() => router.push('/my-appointments')}>
                                 <View style={styles.metricIconCircle}>
-                                    <Ionicons name="calendar-outline" size={24} color="#008080" />
+                                    <Ionicons name="calendar-outline" size={22} color="#008080" />
                                 </View>
                                 <Text style={styles.metricTitle}>My Appointments</Text>
                                 <Text style={styles.metricSubtitle}>{appointments.filter(a => a.status === 'pending' || a.status === 'confirmed').length} UPCOMING</Text>
                             </Pressable>
                             <Pressable style={styles.metricCard} onPress={() => router.push('/prescriptions-list')}>
                                 <View style={[styles.metricIconCircle, { backgroundColor: '#eefaf6' }]}>
-                                    <Ionicons name="medical-outline" size={24} color="#008080" />
+                                    <Ionicons name="medical-outline" size={22} color="#008080" />
                                 </View>
                                 <Text style={styles.metricTitle}>My Prescriptions</Text>
                                 <Text style={styles.metricSubtitle}>{prescriptions.length} ACTIVE</Text>
+                            </Pressable>
+                            <Pressable style={styles.metricCard} onPress={() => router.push('/report-explainer')}>
+                                <View style={[styles.metricIconCircle, { backgroundColor: '#e6f7f7' }]}>
+                                    <Ionicons name="cloud-upload-outline" size={22} color="#008080" />
+                                </View>
+                                <Text style={styles.metricTitle}>Upload Rx</Text>
+                                <Text style={styles.metricSubtitle}>AI EXPLAIN</Text>
                             </Pressable>
                         </View>
 
@@ -266,17 +273,6 @@ export default function HomeScreen() {
                     </>
                 )}
             </ScrollView>
-
-            {/* Floating Assistant only for patients */}
-            {!isDoctor && (
-                <Pressable 
-                    style={styles.floatingAssistantBtn} 
-                    onPress={() => router.push('/assistant')} 
-                    accessibilityLabel="Open Assistant"
-                >
-                    <Image source={require('@/assets/images/Assistant.jpg')} style={styles.floatingAssistantImg} />
-                </Pressable>
-            )}
         </SafeAreaView>
     );
 }
